@@ -36,6 +36,8 @@ const zh: Messages = {
   'login.title': '登录',
   'login.intro': '队伍的工程笔记。只有队伍 Discord 服务器里的成员能登录。',
   'login.button': '用 Discord 登录',
+  'login.demoIntro': '演示模式：选一个测试账号直接进入，不需要 Discord。',
+  'login.demoAdmin': '管理员',
   'login.deniedTitle': '你不在队伍的 Discord 服务器里',
   'login.deniedAccount': '刚才登录的账号是',
   'login.deniedHint': '。请队长把你拉进服务器，或者换一个账号。',

@@ -30,9 +30,9 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import { STATUS, kindKey, statusKey, stepKey, uiStatus } from '@/components/status'
 import { t, type Key } from '@/i18n'
 import {
-  approve, countNI, discard, getEntry, me, regenerate, reopen, retry, returnEntry, revise, save, submit,
+  approve, countNI, discard, fetchEntry, getEntry, me, regenerate, reopen, retry, returnEntry, revise, save, submit,
   type NotebookEntry, type Revision,
-} from '@/mock'
+} from '@/api'
 
 const route = useRoute()
 const e = computed(() => getEntry(Number(route.params.id)))
@@ -79,16 +79,16 @@ const reason = ref('')
 const reasonErr = ref(false)
 const aiText = ref('')
 
-function doSave(quiet = false) {
+async function doSave(quiet = false) {
   const x = e.value!
-  if (!save(x, draft.value!, baseVersion, aiList())) { dlg.value = 'conflict'; return false }
+  if (!(await save(x, draft.value!, baseVersion, aiList()))) { dlg.value = 'conflict'; return false }
   editingArchived.value = false
   if (!quiet) toast(t('toast.saved'))
   return true
 }
-function doSubmit() {
-  if (dirty.value && !doSave(true)) return
-  submit(e.value!)
+async function doSubmit() {
+  if (dirty.value && !(await doSave(true))) return
+  await submit(e.value!)
 }
 function doReject() {
   if (!reason.value.trim()) { reasonErr.value = true; return }
@@ -107,7 +107,7 @@ function addImage(attachmentId: number, i: number) {
   ai.delete(s)
 }
 function exportMd() {
-  // ponytail: GET /api/entries/:id/export.md once the server exists
+  location.href = `/api/entries/${e.value!.id}/export.md`
   const slug = e.value!.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
   toast(t('toast.exported', { file: `${e.value!.date}-${slug}.md` }))
 }
@@ -463,7 +463,7 @@ const revKey = (w: string) => ('rev.' + w) as Key
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel>{{ t('dlg.conflictKeep') }}</AlertDialogCancel>
-          <AlertDialogAction @click="load()"><RefreshCw aria-hidden="true" />{{ t('dlg.conflictRefresh') }}</AlertDialogAction>
+          <AlertDialogAction @click="fetchEntry(e.id).then(load)"><RefreshCw aria-hidden="true" />{{ t('dlg.conflictRefresh') }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

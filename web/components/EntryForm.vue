@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, Image, Plus, Trash2, X } from '@lucide/vue'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { t } from '@/i18n'
-import { NI, SUBSYSTEMS, isRegistered, type Attachment, type NotebookEntry, type Section } from '@/mock'
+import { NI, SUBSYSTEMS, isRegistered, type Attachment, type NotebookEntry, type Section } from '@/api'
 import TextList from './TextList.vue'
 
 const props = defineProps<{ note: NotebookEntry; ai: Set<unknown>; attachments: Attachment[]; draftedAt?: string }>()

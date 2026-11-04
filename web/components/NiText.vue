@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Renders text with every [needs input] as a yellow inline token that NiJump can scroll to.
 import { computed } from 'vue'
-import { NI } from '@/mock'
+import { NI } from '@/api'
 
 const props = defineProps<{ text: string }>()
 const parts = computed(() => props.text.split(NI))

@@ -1,4 +1,4 @@
-import type { Entry } from '@/mock'
+import type { Entry } from '@/api'
 import type { Key } from '@/i18n'
 
 export type UiStatus = 'collecting' | 'generating' | 'draft' | 'pending' | 'archived' | 'discarded' | 'failed'

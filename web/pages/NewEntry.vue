@@ -5,7 +5,7 @@ import { File as FileIcon, Upload, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { t } from '@/i18n'
-import { createEntry } from '@/mock'
+import { createEntry } from '@/api'
 
 const router = useRouter()
 const text = ref('')
@@ -28,10 +28,15 @@ onBeforeUnmount(() => files.value.forEach((f) => f.url && URL.revokeObjectURL(f.
 const size = (b: number) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB')
 const ext = (n: string) => n.match(/\.([a-z0-9]+)$/i)?.[1].toUpperCase() ?? 'FILE'
 
-function generate() {
-  const id = createEntry(text.value, date.value, files.value.map((f) => f.file))
-  files.value = [] // object URLs now belong to the entry's attachments
-  router.push(`/entries/${id}`)
+const busy = ref(false)
+async function generate() {
+  busy.value = true
+  try {
+    const id = await createEntry(text.value, date.value, files.value.map((f) => f.file))
+    router.push(`/entries/${id}`)
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 
@@ -98,7 +103,7 @@ function generate() {
         <Button as-child variant="outline" class="h-11 bg-card md:h-[38px]">
           <RouterLink to="/" class="text-foreground no-underline">{{ t('common.cancel') }}</RouterLink>
         </Button>
-        <Button type="submit" class="h-11 px-4 md:h-[38px]" :disabled="!text.trim() && !files.length">{{ t('new.generate') }}</Button>
+        <Button type="submit" class="h-11 px-4 md:h-[38px]" :disabled="busy || (!text.trim() && !files.length)">{{ t('new.generate') }}</Button>
       </div>
     </form>
   </main>

@@ -4,7 +4,7 @@
 import { Plus, X } from '@lucide/vue'
 import { Input } from '@/components/ui/input'
 import { t } from '@/i18n'
-import { NI } from '@/mock'
+import { NI } from '@/api'
 
 defineProps<{ items: string[]; label: string }>()
 const emit = defineEmits<{ touch: [] }>()

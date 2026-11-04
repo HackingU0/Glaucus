@@ -35,6 +35,8 @@ const en = {
   'login.title': 'Log in',
   'login.intro': "Your team's engineering notebook. Only members of the team Discord server can log in.",
   'login.button': 'Log in with Discord',
+  'login.demoIntro': 'Demo mode: pick a test account to go straight in. No Discord needed.',
+  'login.demoAdmin': 'Admin',
   'login.deniedTitle': "You're not in the team's Discord server",
   'login.deniedAccount': 'You just logged in as',
   'login.deniedHint': '. Ask your captain to add you to the server, or use a different account.',

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The formal notebook page. Its labels stay English on purpose: this is the notebook itself
 // (what judges read), not app chrome, so it doesn't follow the UI language.
-import type { Attachment, NotebookEntry } from '@/mock'
+import type { Attachment, NotebookEntry } from '@/api'
 import NiText from './NiText.vue'
 
 const props = defineProps<{

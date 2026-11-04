@@ -6,7 +6,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { t } from '@/i18n'
-import type { Entry, Section } from '@/mock'
+import type { Entry, Section } from '@/api'
 import Avatar from './Avatar.vue'
 
 const props = defineProps<{
@@ -103,7 +103,8 @@ const attName = (id: number) => props.entry.attachments.find((a) => a.id === id)
             </span>
           </div>
           <div class="flex flex-col gap-1.5 px-2.5 py-2">
-            <div class="truncate font-mono text-[11px] text-ink-2">{{ a.filename }}</div>
+            <a v-if="!a.url && a.orig_url" :href="a.orig_url" class="truncate font-mono text-[11px] text-ink-2">{{ a.filename }}</a>
+            <div v-else class="truncate font-mono text-[11px] text-ink-2">{{ a.filename }}</div>
             <div v-if="a.from" class="text-[11px] text-faint">{{ a.from }}</div>
             <DropdownMenu v-if="sections && isImage(a.filename)">
               <DropdownMenuTrigger as-child>

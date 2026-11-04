@@ -8,7 +8,7 @@ import SegTabs from '@/components/SegTabs.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { kindKey, stepKey, uiStatus } from '@/components/status'
 import { t } from '@/i18n'
-import { countNI, entries, me, type Entry } from '@/mock'
+import { countNI, entries, me, type Entry } from '@/api'
 
 const q = ref('')
 const tab = ref('all')
@@ -18,7 +18,7 @@ const selected = ref(new Set<number>())
 const needle = computed(() => q.value.trim().toLowerCase())
 const strings = (x: unknown): string[] =>
   typeof x === 'string' ? [x] : x && typeof x === 'object' ? Object.values(x).flatMap(strings) : []
-// ponytail: client-side substring search over mock data; the server does FTS5 (GET /api/entries?q=)
+// ponytail: client-side substring search over the full list; move to FTS5 on the server when the list gets big
 const body = (e: Entry) => [...strings(e.entry), e.source_text ?? '', ...e.source_messages.map((m) => m.content)].join(' ')
 
 const awaitingMe = (e: Entry) => e.status === 'pending_approval' && e.submitted_by !== me.real_name
@@ -91,7 +91,7 @@ function toggle(id: number) {
   selected.value = s
 }
 function exportZip() {
-  // ponytail: GET /api/export.zip?ids= once the server exists
+  location.href = `/api/export.zip?ids=${[...selected.value].join(',')}`
   toast(t('toast.zipping', { n: selected.value.size }))
   selected.value = new Set()
 }

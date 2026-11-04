@@ -6,13 +6,13 @@ import { Input } from '@/components/ui/input'
 import Avatar from '@/components/Avatar.vue'
 import LangSwitch from '@/components/LangSwitch.vue'
 import { t } from '@/i18n'
-import { me } from '@/mock'
+import { me, register } from '@/api'
 
 const router = useRouter()
 const name = ref('')
-function confirm() {
+async function confirm() {
   if (!name.value.trim()) return
-  me.real_name = name.value.trim() // ponytail: POST /api/me once the server exists
+  await register(name.value.trim())
   router.push('/')
 }
 </script>

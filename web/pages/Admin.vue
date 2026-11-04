@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import SegTabs from '@/components/SegTabs.vue'
 import { kindKey, stepKey } from '@/components/status'
 import { t } from '@/i18n'
-import { entries, members, retry } from '@/mock'
+import { entries, members, renameMember, retry } from '@/api'
 
 const tab = ref('failed')
 const queued = ref(new Set<number>())
@@ -24,9 +24,8 @@ function doRetry(id: number) {
   queued.value = new Set(queued.value).add(id)
   retry(entries.find((e) => e.id === id)!)
 }
-function saveName(id: string) {
-  const m = members.find((x) => x.discord_id === id)!
-  m.real_name = draft.value.trim() || m.real_name // ponytail: PUT /api/members/:discord_id
+async function saveName(id: string) {
+  if (draft.value.trim()) await renameMember(id, draft.value.trim())
   editing.value = null
 }
 const th = 'border-b px-4 py-2.5 font-medium'

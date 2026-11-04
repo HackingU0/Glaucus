@@ -7,7 +7,7 @@ import {
   DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { LOCALES, locale, t } from '@/i18n'
-import { me } from '@/mock'
+import { logout, me } from '@/api'
 import Avatar from './Avatar.vue'
 
 defineProps<{ ownMobileHeader?: boolean }>()
@@ -51,9 +51,7 @@ const nav = computed(() => [
             <DropdownMenuRadioItem v-for="(name, code) in LOCALES" :key="code" :value="code">{{ name }}</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem as-child>
-            <RouterLink to="/login" class="no-underline">{{ t('nav.logout') }}</RouterLink>
-          </DropdownMenuItem>
+          <DropdownMenuItem @select="logout">{{ t('nav.logout') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -1,0 +1,15 @@
+# Copy to config.toml. Restart to apply. Secrets go in .env (see .env.example).
+site_url = "http://localhost:5173"    # OAuth redirect = site_url + /auth/callback
+timezone = "America/Los_Angeles"      # "today" and all displayed times use this
+subsystems = ["Intake", "Drivetrain", "Outtake", "Software", "Strategy", "Outreach"]
+image_limit = 20                      # images per entry sent to the LLM
+
+[discord]
+client_id = ""
+guild_id = ""
+admin_role_id = ""                    # members with this role are bot-admin
+log_channel_id = ""                   # empty = log to console only
+
+[llm]
+base_url = "https://api.deepseek.com"
+model = "deepseek-flash"

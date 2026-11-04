@@ -36,6 +36,8 @@ const es: Messages = {
   'login.title': 'Iniciar sesión',
   'login.intro': 'El cuaderno de ingeniería del equipo. Solo pueden entrar los miembros del servidor de Discord del equipo.',
   'login.button': 'Entrar con Discord',
+  'login.demoIntro': 'Modo de demostración: elige una cuenta de prueba para entrar directamente. No hace falta Discord.',
+  'login.demoAdmin': 'Administrador',
   'login.deniedTitle': 'No estás en el servidor de Discord del equipo',
   'login.deniedAccount': 'Acabas de entrar como',
   'login.deniedHint': '. Pide a tu capitán que te añada al servidor o usa otra cuenta.',
