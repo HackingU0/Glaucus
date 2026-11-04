@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* light only for now; shadcn dark: classes key off a .dark ancestor, never the OS setting */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #F6F6F4;
+  --foreground: #1C1C1A;
+  --card: #FFFFFF;
+  --card-foreground: #1C1C1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1C1A;
+  --primary: #1C1C1A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F0F0EC;
+  --secondary-foreground: #1C1C1A;
+  --muted: #F0F0EC;
+  --muted-foreground: #5E5E58;
+  --accent: #F0F0EC;
+  --accent-foreground: #1C1C1A;
+  --destructive: #D92D20;
+  --border: #E3E3DF;
+  --input: #D6D6D0;
+  --ring: #2F5BD3;
+  --radius: 0.375rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* design-specific tokens */
+  --color-faint: #6F6F69;   /* secondary meta text */
+  --color-ink-2: #3A3A36;   /* label text */
+  --color-line: #ECECE8;    /* inner dividers */
+  --color-field: #FAFAF8;   /* header strips */
+  --color-track: #EBEBE7;   /* segmented-control track */
+  --color-link: #2F5BD3;
+  --color-ni: #FFF1A8;      /* [needs input] */
+  --color-ni-line: #EAC54F;
+  --color-ni-ink: #6B4E00;
+  --color-ai: #EEF3FF;      /* AI-written tag */
+  --color-ai-line: #D3DFFF;
+  --color-ai-ink: #1E4BB8;
+
+  --font-sans: 'IBM Plex Sans', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+
+  --animate-pulse-dot: pulse-dot 1.2s ease-in-out infinite;
+  @keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+  a:hover { color: var(--color-link); }
+}
+
+/* yellow highlight for form fields that still contain [needs input] */
+.ni-field {
+  background: #FFF6BF;
+  border-color: #E2B93B;
+  box-shadow: 0 0 0 3px rgba(234, 197, 79, .28);
+}
+
+/* "AI" tag: content still exactly as the AI wrote it */
+.ai-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  line-height: 16px;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid var(--color-ai-line);
+  background: var(--color-ai);
+  color: var(--color-ai-ink);
+}
