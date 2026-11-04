@@ -24,8 +24,8 @@ const nav = computed(() => [
   <header class="relative z-30 border-b bg-card" :class="ownMobileHeader && 'hidden md:block'">
     <div class="mx-auto flex h-14 max-w-[1440px] items-center gap-5 px-4 md:px-6">
       <RouterLink to="/" class="flex shrink-0 items-center gap-2 text-foreground no-underline hover:text-foreground">
-        <span aria-hidden="true" class="flex size-[22px] items-center justify-center rounded-[5px] bg-primary font-mono text-[13px] font-medium text-primary-foreground">v</span>
-        <span class="text-[15px] font-semibold tracking-tight">vibedoc</span>
+        <span aria-hidden="true" class="flex size-[22px] items-center justify-center rounded-[5px] bg-primary font-mono text-[13px] font-medium text-primary-foreground">G</span>
+        <span class="text-[15px] font-semibold tracking-tight">Glaucus</span>
       </RouterLink>
       <nav :aria-label="t('nav.main')" class="hidden items-center gap-0.5 md:flex">
         <RouterLink

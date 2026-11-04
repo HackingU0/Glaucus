@@ -47,7 +47,7 @@ web/
   index.html  vite.config.ts  main.ts  router.ts  api.ts（fetch 封装）
   pages/  Login.vue  Register.vue  Entries.vue  NewEntry.vue  Entry.vue  Admin.vue
   components/  EntryForm.vue  SourcePanel.vue  StatusBar.vue  ui/（shadcn-vue 生成）
-data/                   运行时数据（已 gitignore）：vibedoc.db、files/orig、files/small、mirror/
+data/                   运行时数据（已 gitignore）：glaucus.db、files/orig、files/small、mirror/
 ```
 
 开发时 `node --watch --env-file=.env server/main.ts` 和 `vite` 并行跑，Vite 把 `/api` `/auth` `/files` 代理到 Hono。生产只跑 Hono，托管 `web/dist`。

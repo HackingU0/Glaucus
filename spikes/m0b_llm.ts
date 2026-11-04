@@ -111,7 +111,7 @@ console.log(`\nmodel: ${llm.model}  base: ${llm.base_url}\n`)
 for (const r of results) console.log(`${r.ok ? '✅' : '❌'} ${r.name.padEnd(24)} thinking ${r.thinking ? 'on ' : 'off'} ${r.s.toFixed(1).padStart(6)}s  ${r.detail}`)
 
 // Production path: exact system prompt, retry loop and tidy(), in a throwaway database.
-process.env.DATA_DIR = mkdtempSync(`${tmpdir()}/vibedoc-m0b-`)
+process.env.DATA_DIR = mkdtempSync(`${tmpdir()}/glaucus-m0b-`)
 process.env.COOKIE_SECRET ||= 'spike'
 const { compose } = await import('../server/agent.ts')
 const sources = `[2026-11-02 15:02] Alice Chen: 今天调 intake，原来 REV 的轮子太滑，球老是吸不进来

@@ -129,7 +129,7 @@ const es: Messages = {
   'form.draftedAt': 'Redactado por la IA el {time}',
   'form.dateTime': 'Fecha y hora',
   'form.people': { one: '{n} persona', other: '{n} personas' },
-  'form.unregisteredHint': 'Esta persona aún no ha registrado su nombre real en vibedoc',
+  'form.unregisteredHint': 'Esta persona aún no ha registrado su nombre real en Glaucus',
   'form.removePerson': 'Quitar a {name}',
   'form.newPerson': 'Nombre del nuevo asistente',
   'form.name': 'Nombre',

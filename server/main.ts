@@ -28,7 +28,7 @@ if (import.meta.main) {
   if (config.devLogin) await (await import('./demo.ts')).startDemo()
   const port = Number(process.env.PORT ?? 8787)
   serve({ fetch: app.fetch, port }, () => {
-    console.log(`vibedoc on :${port}${config.devLogin ? ' (DEV_LOGIN on: /auth/dev is open — never in production)' : ''}`)
-    void log('🟢 vibedoc started')
+    console.log(`Glaucus on :${port}${config.devLogin ? ' (DEV_LOGIN on: /auth/dev is open — never in production)' : ''}`)
+    void log('🟢 Glaucus started')
   })
 }

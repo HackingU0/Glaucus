@@ -116,7 +116,7 @@ function exportMd() {
 const short = (s?: string) => s?.slice(5) ?? ''
 const sigs = computed(() => {
   const x = e.value!
-  const out: { role: string; who: string; when: string; muted?: boolean }[] = [{ role: 'Drafted by', who: 'AI (vibedoc)', when: x.drafted_at ?? '—' }]
+  const out: { role: string; who: string; when: string; muted?: boolean }[] = [{ role: 'Drafted by', who: 'AI (Glaucus)', when: x.drafted_at ?? '—' }]
   if (x.status === 'discarded') return [...out, { role: 'Discarded by', who: x.discarded_by!, when: x.discarded_at! }]
   out.push({ role: 'Submitted by', who: x.submitted_by ?? '—', when: x.submitted_at ?? '—', muted: !x.submitted_by })
   out.push(x.approved_by ? { role: 'Approved by', who: x.approved_by, when: x.approved_at! } : { role: 'Approved by', who: 'Pending', when: '—', muted: true })

@@ -8,7 +8,7 @@ import sharp from 'sharp'
 import { MockLanguageModelV4 } from 'ai/test'
 
 Object.assign(process.env, {
-  CONFIG: 'config.example.toml', DATA_DIR: mkdtempSync(`${tmpdir()}/vibedoc-`), COOKIE_SECRET: 'test', DEV_LOGIN: '1',
+  CONFIG: 'config.example.toml', DATA_DIR: mkdtempSync(`${tmpdir()}/glaucus-`), COOKIE_SECRET: 'test', DEV_LOGIN: '1',
 })
 const { app } = await import('./main.ts')
 const { setModel } = await import('./agent.ts')

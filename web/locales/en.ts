@@ -128,7 +128,7 @@ const en = {
   'form.draftedAt': 'AI drafted at {time}',
   'form.dateTime': 'Date and time',
   'form.people': { one: '{n} person', other: '{n} people' },
-  'form.unregisteredHint': "This person hasn't registered a real name in vibedoc yet",
+  'form.unregisteredHint': "This person hasn't registered a real name in Glaucus yet",
   'form.removePerson': 'Remove {name}',
   'form.newPerson': "New attendee's name",
   'form.name': 'Name',

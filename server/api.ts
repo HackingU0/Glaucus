@@ -209,6 +209,6 @@ export const api = new Hono<Env>()
     }
     if (!Object.keys(files).length) return c.json({ error: 'no archived entries selected' }, 400)
     c.header('Content-Type', 'application/zip')
-    c.header('Content-Disposition', `attachment; filename="vibedoc-${today()}.zip"`)
+    c.header('Content-Disposition', `attachment; filename="glaucus-${today()}.zip"`)
     return c.body(zipSync(files, { level: 0 }))
   })

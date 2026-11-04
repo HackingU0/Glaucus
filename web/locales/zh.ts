@@ -126,7 +126,7 @@ const zh: Messages = {
   'form.draftedAt': 'AI 起草于 {time}',
   'form.dateTime': '日期与时间',
   'form.people': '{n} 人',
-  'form.unregisteredHint': '这个人还没在 vibedoc 注册真名',
+  'form.unregisteredHint': '这个人还没在 Glaucus 注册真名',
   'form.removePerson': '移除 {name}',
   'form.newPerson': '新出勤人的名字',
   'form.name': '名字',

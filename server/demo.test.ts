@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import { NotebookEntry } from '../shared/entry.ts'
 
 Object.assign(process.env, {
-  CONFIG: 'config.example.toml', DATA_DIR: mkdtempSync(`${tmpdir()}/vibedoc-`), COOKIE_SECRET: 'test', DEV_LOGIN: '1', LLM_API_KEY: '',
+  CONFIG: 'config.example.toml', DATA_DIR: mkdtempSync(`${tmpdir()}/glaucus-`), COOKIE_SECRET: 'test', DEV_LOGIN: '1', LLM_API_KEY: '',
 })
 const { app } = await import('./main.ts')
 const { config } = await import('./config.ts')

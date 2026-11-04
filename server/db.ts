@@ -4,7 +4,7 @@ import type { NotebookEntry, Status } from '../shared/entry.ts'
 import { config } from './config.ts'
 
 mkdirSync(config.dataDir, { recursive: true })
-export const db = new DatabaseSync(process.env.DB ?? `${config.dataDir}/vibedoc.db`)
+export const db = new DatabaseSync(process.env.DB ?? `${config.dataDir}/glaucus.db`)
 db.exec('pragma journal_mode = wal; pragma foreign_keys = on;')
 
 // plan.md §2, plus the bookkeeping columns the UI shows (who / when for each step).

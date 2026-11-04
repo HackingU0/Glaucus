@@ -1,4 +1,4 @@
-# vibedoc.bot 设计文档
+# Glaucus 设计文档
 
 实现细节见 [plan.md](plan.md)。
 
