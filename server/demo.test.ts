@@ -90,6 +90,15 @@ test('canned AI: fresh draft keeps the notes and invents nothing; revise changes
   assert.deepEqual(revised, { ...fresh, next_steps: ['[needs input]', 'add a retest'] })
 })
 
+test('a failed draft can be discarded and stops counting as failed', async () => {
+  const alice = await asAccount('alice')
+  const failed = (await alice('/api/entries')).body.find((e: { failed_step: string | null }) => e.failed_step)
+  assert.equal(failed.status, 'drafting')
+  const { status, body: e } = await alice(`/api/entries/${failed.id}/discard`, { method: 'POST' })
+  assert.equal(status, 200)
+  assert.deepEqual([e.status, e.discarded_by, e.failed_step, e.error], ['discarded', 'Alice Chen', null, null])
+})
+
 test('demo flow: new entry → canned draft → submit → another member approves', async () => {
   const alice = await asAccount('alice')
   const carol = await asAccount('carol')
@@ -98,6 +107,7 @@ test('demo flow: new entry → canned draft → submit → another member approv
   form.set('date', '2026-11-04')
   let { body: e } = await alice('/api/entries', { method: 'POST', body: form })
   assert.equal(e.status, 'drafting')
+  assert.equal((await alice(`/api/entries/${e.id}/discard`, { method: 'POST' })).status, 409, 'a running draft cannot be discarded')
   for (let i = 0; i < 40 && e.status === 'drafting' && !e.failed_step; i++) {
     await new Promise((r) => setTimeout(r, 100))
     e = (await alice(`/api/entries/${e.id}`)).body

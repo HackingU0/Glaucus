@@ -145,7 +145,12 @@ export const api = new Hono<Env>()
     return reply(c, row.id)
   })
   .post('/entries/:id/discard', (c) => {
-    if (!transition(id(c), ['draft_ready'], 'discarded', { discarded_by: c.get('user').discord_id, discarded_at: now() })) return conflict(c)
+    // A failed draft has no job running, so it can go too. A running one can't: the job would write its draft back.
+    const from = getRow(id(c))?.failed_step ? (['draft_ready', 'drafting'] as const) : (['draft_ready'] as const)
+    const ok = transition(id(c), [...from], 'discarded', {
+      discarded_by: c.get('user').discord_id, discarded_at: now(), failed_step: null, error: null, failed_at: null,
+    })
+    if (!ok) return conflict(c)
     return reply(c, id(c))
   })
   .post('/entries/:id/submit', (c) => {

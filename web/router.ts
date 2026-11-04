@@ -7,7 +7,7 @@ import Entry from './pages/Entry.vue'
 import Admin from './pages/Admin.vue'
 import { loadMe, me, refresh } from './api'
 
-// meta.bare: no top bar (auth pages). meta.ownMobileHeader: page draws its own header below md.
+// meta.bare: no top bar (auth pages). meta.ownMobileHeader: page draws its own header below md. meta.admin: bot-admins only.
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -16,7 +16,7 @@ export const router = createRouter({
     { path: '/', component: Entries },
     { path: '/new', component: NewEntry },
     { path: '/entries/:id', component: Entry, meta: { ownMobileHeader: true } },
-    { path: '/admin', component: Admin },
+    { path: '/admin', component: Admin, meta: { admin: true } },
   ],
   scrollBehavior: () => ({ top: 0 }),
 })
@@ -26,5 +26,6 @@ router.beforeEach(async (to) => {
   if (to.path === '/login') return
   if (!me.discord_id && !(await loadMe())) return '/login'
   if (!me.real_name) return to.path === '/register' || '/register'
+  if (to.meta.admin && !me.is_admin) return '/'
   if (to.path !== '/register') await refresh()
 })
