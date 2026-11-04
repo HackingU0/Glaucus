@@ -240,7 +240,21 @@ Discord 日志频道记录**错误 + 关键状态变化**，每条一行，附 `
   → 当时用 pydantic-ai 的 `PromptedOutput`：schema 写进 prompt，校验 + 重试；与普通 tools 共存正常。
 - 复现：`uv run spikes/m0_llm.py`（迁移到 TS 后仅作参考）。
 
-### M0b（TS + AI SDK，待测）
+### M0b（2026-11-04，TS，`ai` 7.0.162 + `@ai-sdk/deepseek` 3.0.79）
 
-- 上面的限制与 SDK 无关，AI SDK 的结构化输出很可能也会碰到。
-- 退路：schema 写进 prompt → zod 解析 → 失败带错误信息重试，自己写十几行。
+- 结构化输出、function calling 与结构化输出共存、图片输入均通过，thinking 开 / 关都可用。
+- **结论：用 `Output.object({ schema: NotebookEntry })`，不再手写 schema prompt。** thinking 保持默认（开）。解析或校验失败时抛 `NoObjectGeneratedError`，`agent.ts` 带错误信息重试，最多 3 次；网络、鉴权等错误直接抛出。
+- SDK 在这里是兼容模式：设 `response_format: json_object`，把 schema 注入 system message，因此绕开了 M0 发现的 `json_schema` 限制。
+- **坑**：把 schema 手写进 prompt 且 thinking 开启时，模型常把 JSON Schema 本身当答案返回。
+
+同样的假消息和 `get_member` 工具，每格 6 次，统计第一次就通过的次数（样本小，只看趋势）：
+
+| 输出方式 | thinking 开 | thinking 关 |
+|---|---|---|
+| 手写 schema prompt + zod | 2/6 | 6/6 |
+| `Output.object` | 6/6 | 6/6 |
+
+- 正式路径 `compose()`（thinking 开，带一张图）：10/10 成功，共 13 次 HTTP 请求，平均 5.6 s；事实（9/10、compliant 决定）全部保留，图片都引用正确。
+- 未验证：`compose()` 里 `search_entries` / `get_entry` 是否被模型调用（工具共存只用 `get_member` 验证过）。
+- 已观察到：素材带时间戳时，模型会把第一条和最后一条消息的时间填成 `start_time` / `end_time`（start 10/10，end 9/10），不一定是真实活动时间，靠人工审核把关。
+- 复现：`node --env-file=.env spikes/m0b_llm.ts`。

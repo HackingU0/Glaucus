@@ -28,8 +28,8 @@ const reply = (text: string) => ({
   finishReason: { unified: 'stop' as const, raw: undefined },
   usage: { inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 1, text: 1, reasoning: 0 } },
 })
-// First reply is broken → the agent must retry with the zod error and accept the second.
-const model = new MockLanguageModelV4({ doGenerate: [reply('sure! {"title": 1}'), reply('```json\n' + JSON.stringify(NOTE) + '\n```')] })
+// Not JSON, then JSON that fails the schema → the agent must retry each time and accept the third.
+const model = new MockLanguageModelV4({ doGenerate: [reply('sure! here it is'), reply('{"title": 1}'), reply(JSON.stringify(NOTE))] })
 setModel(model)
 
 async function login(id: string, name: string, admin = false) {
@@ -78,7 +78,7 @@ test('draft → submit → approve → admin edit → export', async () => {
     e = (await alice(`/api/entries/${e.id}`)).body
   }
   assert.equal(e.status, 'draft_ready', e.error)
-  assert.equal(model.doGenerateCalls.length, 2, 'retried once after invalid output')
+  assert.equal(model.doGenerateCalls.length, 3, 'retried after each invalid output')
   assert.equal(e.entry.date, '2026-11-02', 'date comes from the entry, not the model')
   assert.deepEqual(e.entry.sections[0].images.map((im: { attachment_id: number }) => im.attachment_id), [1], 'foreign attachment ids dropped')
   assert.equal(e.created_by, 'Alice Chen')

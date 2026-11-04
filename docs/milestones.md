@@ -39,15 +39,15 @@
 
 **验收**：三项全部通过（或已确定替代 provider）。
 
-### M0b — LLM 实测（spike，TS）
+### M0b — LLM 实测（spike，TS）✅
 
 技术栈换成 TS，同样三项用 AI SDK 重测。
 
-- [ ] 一个脚本：AI SDK + `@ai-sdk/deepseek`，假消息 → zod 校验的 `NotebookEntry`
-- [ ] 确定可用的结构化输出模式（thinking 模式下 tool / json 模式可能不支持，退路为 prompt 内 schema + zod 解析 + 重试）
-- [ ] 验证 function calling 与结构化输出共存
-- [ ] 验证图片输入
-- [ ] 结论写回 design.md §11
+- [x] 一个脚本：AI SDK + `@ai-sdk/deepseek`，假消息 → zod 校验的 `NotebookEntry`
+- [x] 确定可用的结构化输出模式（thinking 模式下 tool / json 模式可能不支持，退路为 prompt 内 schema + zod 解析 + 重试）
+- [x] 验证 function calling 与结构化输出共存
+- [x] 验证图片输入
+- [x] 结论写回 design.md §11
 
 **验收**：三项全部通过，输出模式已确定。
 

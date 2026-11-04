@@ -1,8 +1,7 @@
-// design.md §4. Schema goes in the prompt and the reply is parsed with zod + retried: M0 found deepseek
-// thinking mode rejects forced tool_choice and json_schema response_format, so no native structured output.
-// ponytail: M0b (AI SDK against the real API) is still open; if it finds native output works, only this file changes.
+// design.md §4, §11. Output.object over a hand-written schema prompt: with thinking on, deepseek-flash often echoes a
+// schema pasted into our prompt back as its answer (M0b); the SDK's own injection did not. Invalid replies are retried.
 import { createDeepSeek } from '@ai-sdk/deepseek'
-import { generateText, stepCountIs, tool, type LanguageModel, type ModelMessage, type UserContent } from 'ai'
+import { generateText, NoObjectGeneratedError, Output, stepCountIs, tool, type LanguageModel, type ModelMessage, type UserContent } from 'ai'
 import { z } from 'zod'
 import { NI, NotebookEntry } from '../shared/entry.ts'
 import { config } from './config.ts'
@@ -22,8 +21,7 @@ Rules:
 - attendees are real names of people who took part (authors of the notes count).
 - You may call search_entries / get_entry to link to earlier archived entries.
 
-Reply with ONLY a JSON object matching this JSON Schema, no prose, no code fence:
-${JSON.stringify(z.toJSONSchema(NotebookEntry))}`
+Reply with only the notebook entry as a JSON object, no prose, no code fence.`
 
 const ftsQuery = (q: string) => q.split(/\s+/).filter(Boolean).map((w) => `"${w.replace(/"/g, '""')}"`).join(' OR ')
 
@@ -70,19 +68,14 @@ export async function compose(input: AgentInput): Promise<NotebookEntry> {
   const messages: ModelMessage[] = [{ role: 'user', content }]
   let lastError = ''
   for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await generateText({ model, instructions: SYSTEM, messages, tools, stopWhen: stepCountIs(8) })
-    const json = r.text.slice(r.text.indexOf('{'), r.text.lastIndexOf('}') + 1)
-    let parsed: ReturnType<typeof NotebookEntry.safeParse>
     try {
-      parsed = NotebookEntry.safeParse(JSON.parse(json))
+      const r = await generateText({ model, instructions: SYSTEM, messages, tools, stopWhen: stepCountIs(8), output: Output.object({ schema: NotebookEntry }) })
+      return tidy(r.output, input)
     } catch (err) {
-      lastError = `not valid JSON: ${(err as Error).message}`
-      messages.push(...r.response.messages, { role: 'user', content: `Your reply was ${lastError}. Reply with only the JSON object.` })
-      continue
+      if (!NoObjectGeneratedError.isInstance(err)) throw err // network, auth, rate limit: retrying here will not help
+      lastError = (err.cause as Error | undefined)?.message ?? err.message
+      messages.push({ role: 'assistant', content: err.text || '(empty)' }, { role: 'user', content: `Your reply was invalid:\n${lastError}\nReply with the corrected JSON object only.` })
     }
-    if (parsed.success) return tidy(parsed.data, input)
-    lastError = z.prettifyError(parsed.error)
-    messages.push(...r.response.messages, { role: 'user', content: `Your JSON does not match the schema:\n${lastError}\nReply with the corrected JSON object only.` })
   }
   throw new Error(`LLM output invalid after 3 attempts: ${lastError.slice(0, 500)}`)
 }
