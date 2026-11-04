@@ -3,3 +3,5 @@ web/dist/
 .env
 data/
 config.toml
+.DS_Store
+.claude/worktrees/
