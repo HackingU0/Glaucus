@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import type { NotebookEntry, Status } from '../shared/entry.ts'
-import { config } from './config.ts'
+import { config, now } from './config.ts'
 
 mkdirSync(config.dataDir, { recursive: true })
 export const db = new DatabaseSync(process.env.DB ?? `${config.dataDir}/glaucus.db`)
@@ -83,6 +83,17 @@ create table if not exists entry_revisions (
 );
 
 create virtual table if not exists entries_fts using fts5(title, body, entry_id unindexed);
+
+-- One row per AI call. member_id is who triggered it, and may not be a registered member yet.
+create table if not exists ai_usage (
+  id            integer primary key,
+  member_id     text not null,
+  entry_id      integer,
+  input_tokens  integer not null,
+  output_tokens integer not null,
+  at            text not null
+);
+create index if not exists ai_usage_by_time on ai_usage(at);
 `)
 // Databases from before M4: 'create table if not exists' does not add columns.
 if (!(db.prepare('pragma table_info(entries)').all() as { name: string }[]).some((c) => c.name === 'channel_name')) {
@@ -127,6 +138,11 @@ export function memberName(id: string | null | undefined) {
   if (!id) return null
   const m = db.prepare('select real_name, discord_name from members where discord_id = ?').get(id) as { real_name: string; discord_name: string } | undefined
   return m?.real_name || m?.discord_name || id
+}
+
+export function recordUsage(memberId: string, entryId: number | null, usage: { inputTokens?: number; outputTokens?: number }) {
+  db.prepare('insert into ai_usage (member_id, entry_id, input_tokens, output_tokens, at) values (?, ?, ?, ?, ?)')
+    .run(memberId, entryId, usage.inputTokens ?? 0, usage.outputTokens ?? 0, now())
 }
 
 export const realName = (discordId: string) =>

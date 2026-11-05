@@ -88,11 +88,11 @@ export function sealSession(id: number) {
 }
 
 /** After sealSession. Once a draft exists, new messages merge into it so hand edits survive, and no new messages means no AI run. */
-export async function draftSession(id: number, before: number) {
-  if (!getRow(id)!.entry) return runAgent(id)
+export async function draftSession(id: number, before: number, by?: string) {
+  if (!getRow(id)!.entry) return runAgent(id, undefined, by)
   if (sourcesOf(id).length === before) return void transition(id, ['drafting'], 'draft_ready')
   transition(id, ['drafting'], 'drafting', { revising: MERGE })
-  return runAgent(id, MERGE)
+  return runAgent(id, MERGE, by)
 }
 
 /** /continue: only a draft still being worked on goes back to collecting, and one session per channel still holds. */
@@ -118,14 +118,14 @@ export function openQuick(userId: string) {
 }
 
 /** New messages are in a quick note: first draft, or a revise that folds them in. Queues behind a job already running. */
-export function draftQuick(id: number) {
+export function draftQuick(id: number, by?: string) {
   const row = getRow(id)!
   if (row.status === 'collecting' || (row.status === 'drafting' && !row.entry && row.failed_step)) {
     transition(id, [row.status], 'drafting', NOT_FAILED)
-    return runAgent(id)
+    return runAgent(id, undefined, by)
   }
   if (row.status === 'draft_ready') transition(id, ['draft_ready'], 'drafting', { revising: MERGE, ...NOT_FAILED })
-  return runAgent(id, MERGE)
+  return runAgent(id, MERGE, by)
 }
 
 /**
@@ -136,7 +136,8 @@ export async function selectMessages(all: Msg[], mustKeep: string[], since?: str
   const candidates = since ? all.filter((m) => BigInt(m.id) > BigInt(since) || mustKeep.includes(m.id)) : all
   const usable = (m: Msg) => m.content || m.attachments.length
   if (candidates.length <= mustKeep.length) return candidates.filter(usable)
-  const numbers = new Set(await pickMessages(candidates.map((m) => ({ author: m.authorName, content: m.content, files: m.attachments.map((a) => a.filename) }))))
+  const mentionedBy = candidates.find((m) => m.id === mustKeep[0])!.authorId // whoever mentioned the bot pays for the picking
+  const numbers = new Set(await pickMessages(candidates.map((m) => ({ author: m.authorName, content: m.content, files: m.attachments.map((a) => a.filename) })), mentionedBy))
   return candidates.filter((m, i) => (numbers.has(i) || mustKeep.includes(m.id)) && usable(m))
 }
 

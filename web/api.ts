@@ -39,6 +39,7 @@ export interface Entry {
   version: number
   revisions: Revision[]
 }
+export interface UsageRow { member_id: string; name: string; discord_name: string | null; today: number; week: number; month: number; total: number; month_calls: number; last_at: string }
 export interface Member { discord_id: string; discord_name: string; real_name: string; is_admin: boolean; registered_at: string }
 
 export const me = reactive<Member>({ discord_id: '', discord_name: '', real_name: '', is_admin: false, registered_at: '' })
@@ -105,6 +106,7 @@ export async function logout() {
   await fetch('/auth/logout', { method: 'POST' })
   location.href = '/login'
 }
+export const fetchUsage = async (): Promise<UsageRow[]> => (await req('/api/usage')).json()
 export async function renameMember(discordId: string, realName: string) {
   await req(`/api/members/${discordId}`, { method: 'PUT', json: { real_name: realName } })
   const m = members.find((x) => x.discord_id === discordId)

@@ -211,3 +211,59 @@ test('a running session only picks from messages since it started, plus the ment
 
   assert.deepEqual(ids(await c.selectMessages(all, ['400'])), ['100', '150', '300', '400'], 'without a session, older context is still offered')
 })
+
+test('AI usage: a mention counts for whoever mentioned the bot, an idle end for the session creator, and an explicit end for who ended it', async () => {
+  const totals = () => Object.fromEntries((db.prepare('select member_id, sum(input_tokens + output_tokens) n from ai_usage group by member_id').all() as { member_id: string; n: number }[]).map((r) => [r.member_id, r.n]))
+  db.exec('delete from ai_usage')
+  answer('{"numbers": [0, 1]}') // the mock reports 1 + 1 tokens per call
+  await c.selectMessages([{ ...msg('800'), authorId: 'context-author' }, { ...msg('801'), authorId: 'mentioner' }], ['801'])
+  assert.deepEqual(totals(), { mentioner: 2 })
+
+  db.exec('delete from ai_usage')
+  answer(JSON.stringify(NOTE))
+  const idle = session('usage-idle')
+  await c.addMessages(idle, [msg('810')])
+  transition(idle, ['collecting'], 'drafting')
+  c.sealSession(idle)
+  await c.draftSession(idle, 0)
+  assert.deepEqual(totals(), { u1: 2 }, 'the session creator')
+
+  const ended = session('usage-ended')
+  await c.addMessages(ended, [msg('820')])
+  transition(ended, ['collecting'], 'drafting')
+  c.sealSession(ended)
+  await c.draftSession(ended, 0, 'ender')
+  assert.deepEqual(totals(), { u1: 2, ender: 2 })
+})
+
+test('chat: the goose answers or says it is a note, counts tokens for whoever mentioned him, and never throws', async () => {
+  const { chat } = await import('./agent.ts')
+  const who = { memberId: 'chatter', server: 'Team 5898' }
+  const turns = [{ author: 'Alice', content: 'the intake jammed again' }, { author: 'Glaucus', content: 'Honk. Again?', you: true }, { author: 'Bob', content: 'what do you think?' }]
+  db.exec('delete from ai_usage')
+
+  let prompt = ''
+  setModel(new MockLanguageModelV4({ doGenerate: async (o) => { prompt = JSON.stringify(o.prompt); return reply('{"action": "chat", "reply": "  We should check the rollers.  "}') } }))
+  assert.deepEqual(await chat(turns, who), { action: 'chat', reply: 'We should check the rollers.' })
+  assert.match(prompt, /You are Glaucus, a goose/)
+  assert.match(prompt, /Discord server: Team 5898/)
+  assert.match(prompt, /Alice: the intake jammed again/)
+  assert.match(prompt, /You \(Glaucus\): Honk\. Again\?/)
+  assert.deepEqual(db.prepare('select member_id, entry_id, input_tokens, output_tokens from ai_usage').all().map((r) => ({ ...r })), [{ member_id: 'chatter', entry_id: null, input_tokens: 1, output_tokens: 1 }])
+
+  answer('{"action": "record", "reply": ""}')
+  assert.deepEqual(await chat(turns, who), { action: 'record', reply: '' })
+  answer('{"action": "record"}')
+  assert.equal((await chat(turns, who))!.action, 'record', 'reply may be left out')
+
+  await chat([{ author: 'Bob', content: '' }], who)
+  assert.match(prompt, /You are Glaucus/)
+
+  answer('{"action": "chat", "reply": "   "}')
+  assert.equal(await chat(turns, who), null, 'an empty answer is no answer')
+  answer('honk honk, not JSON')
+  assert.equal(await chat(turns, who), null)
+  setModel(new MockLanguageModelV4({ doGenerate: async () => { throw new Error('provider down') } }))
+  assert.equal(await chat(turns, who), null)
+  assert.ok((db.prepare(`select count(*) n from ai_usage where member_id = 'chatter'`).get() as { n: number }).n >= 5, 'invalid replies count too')
+})

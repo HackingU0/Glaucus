@@ -144,3 +144,52 @@ test('a registered name reaches sources and open notes, not approved ones', asyn
   assert.equal(entry.source_messages[0].author, 'Dana Q')
   assert.deepEqual(entry.entry.attendees, ['Dana Q', 'Bob Li'])
 })
+
+test('AI usage: counted for whoever triggered it, invalid replies too, and only bot-admins can read it', async () => {
+  const { db } = await import('./db.ts')
+  db.exec('delete from ai_usage')
+  const dee = as(await login('dee', 'Dee Ng'))
+  const eve = as(await login('eve', 'Eve Ho'))
+  const admin = as(await login('carol', 'Carol Wu', true))
+  const replyCosting = (text: string, input: number, output: number) => ({ ...reply(text), usage: { inputTokens: { total: input, noCache: input, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: output, text: output, reasoning: 0 } } })
+  const settled = async (read: typeof dee, id: number) => {
+    for (let i = 0; i < 100; i++) {
+      const { body } = await read(`/api/entries/${id}`)
+      if (body.status !== 'drafting') return body
+      await new Promise((r) => setTimeout(r, 5))
+    }
+    throw new Error('still drafting')
+  }
+
+  // Dee's draft: one invalid reply, then a valid one. Both cost tokens.
+  setModel(new MockLanguageModelV4({ doGenerate: [replyCosting('not json', 100, 10), replyCosting(JSON.stringify(NOTE), 200, 20)] }))
+  const form = new FormData()
+  form.set('text', 'usage test')
+  const { body: entry } = await dee('/api/entries', { method: 'POST', body: form })
+  await settled(dee, entry.id)
+
+  // Eve revises Dee's note: Eve's tokens, not Dee's.
+  setModel(new MockLanguageModelV4({ doGenerate: [replyCosting(JSON.stringify(NOTE), 1000, 500)] }))
+  assert.equal((await eve(`/api/entries/${entry.id}/revise`, { method: 'POST', json: { instruction: 'tighten it' } })).status, 200)
+  await settled(eve, entry.id)
+
+  assert.equal((await dee('/api/usage')).status, 403)
+  const { body: rows } = await admin('/api/usage')
+  assert.deepEqual(rows.map((r: any) => [r.name, r.month, r.month_calls]), [['Eve Ho', 1500, 1], ['Dee Ng', 330, 2]], 'busiest first')
+  const eveRow = rows[0]
+  assert.deepEqual([eveRow.today, eveRow.week, eveRow.total], [1500, 1500, 1500])
+
+  // Older use only reaches the wider periods.
+  const stored = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400_000).toLocaleString('sv', { timeZone: 'America/Los_Angeles' }).slice(0, 16)
+  const old = db.prepare(`insert into ai_usage (member_id, entry_id, input_tokens, output_tokens, at) values ('eve', null, 7, 0, ?)`)
+  old.run(stored(3))
+  old.run(stored(20))
+  old.run(stored(90))
+  const [after] = (await admin('/api/usage')).body
+  assert.deepEqual([after.today, after.week, after.month, after.total], [1500, 1507, 1514, 1521])
+  assert.equal(after.month_calls, 3)
+
+  // Someone who never logged in still shows up, under their id.
+  db.prepare(`insert into ai_usage (member_id, entry_id, input_tokens, output_tokens, at) values ('stranger', null, 1, 1, ?)`).run(stored(0))
+  assert.ok((await admin('/api/usage')).body.some((r: any) => r.name === 'stranger'))
+})

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { LoaderCircle, Pencil, RotateCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import SegTabs from '@/components/SegTabs.vue'
 import { kindKey, stepKey } from '@/components/status'
-import { t } from '@/i18n'
-import { entries, members, renameMember, retry } from '@/api'
+import { locale, t } from '@/i18n'
+import { entries, fetchUsage, members, renameMember, retry, type UsageRow } from '@/api'
 
 const tab = ref('failed')
 const queued = ref(new Set<number>())
@@ -18,7 +18,14 @@ const rows = computed(() => entries.filter((e) => e.failed_step || queued.value.
 const tabs = computed(() => [
   { key: 'failed', label: t('admin.failed'), count: rows.value.length, countClass: 'bg-[#D92D20] text-white' },
   { key: 'members', label: t('admin.members'), count: members.length },
+  { key: 'usage', label: t('admin.usage') },
 ])
+
+const usage = ref<UsageRow[]>()
+watch(tab, async (now) => { if (now === 'usage') usage.value = await fetchUsage() }) // fresh each time it's opened
+const usagePeriods = ['today', 'week', 'month', 'total'] as const
+const usageSum = (key: (typeof usagePeriods)[number]) => usage.value?.reduce((sum, u) => sum + u[key], 0) ?? 0
+const count = (n: number) => n.toLocaleString(locale.value)
 
 function doRetry(id: number) {
   queued.value = new Set(queued.value).add(id)
@@ -72,6 +79,43 @@ const td = 'border-b border-line px-4 align-top'
       </table>
       <div v-if="!rows.length" class="px-6 py-10 text-center text-sm text-muted-foreground">{{ t('admin.noFailed') }}</div>
     </div>
+
+    <template v-else-if="tab === 'usage'">
+      <div class="mt-3.5 overflow-x-auto rounded-[10px] border bg-card">
+        <table class="w-full min-w-[760px] border-collapse text-[13px]">
+          <caption class="sr-only">{{ t('admin.usageCaption') }}</caption>
+          <thead>
+            <tr class="bg-field text-left text-muted-foreground">
+              <th scope="col" :class="th">{{ t('admin.usageMember') }}</th>
+              <th v-for="p in usagePeriods" :key="p" scope="col" :class="[th, 'text-right whitespace-nowrap']">{{ t(`admin.usage.${p}`) }}</th>
+              <th scope="col" :class="[th, 'text-right whitespace-nowrap']">{{ t('admin.usageCalls') }}</th>
+              <th scope="col" :class="[th, 'whitespace-nowrap']">{{ t('admin.usageLast') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="u in usage" :key="u.member_id">
+              <th scope="row" :class="[td, 'py-2.5 text-left font-medium']">
+                {{ u.name }}
+                <div v-if="u.discord_name && u.discord_name !== u.name" class="font-mono text-xs font-normal text-faint">@{{ u.discord_name }}</div>
+              </th>
+              <td v-for="p in usagePeriods" :key="p" :class="[td, 'py-2.5 text-right font-mono text-xs']">{{ count(u[p]) }}</td>
+              <td :class="[td, 'py-2.5 text-right font-mono text-xs']">{{ count(u.month_calls) }}</td>
+              <td :class="[td, 'py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground']">{{ u.last_at.slice(5) }}</td>
+            </tr>
+          </tbody>
+          <tfoot v-if="usage?.length">
+            <tr class="bg-field font-medium">
+              <th scope="row" class="px-4 py-2.5 text-left">{{ t('admin.usageTotal') }}</th>
+              <td v-for="p in usagePeriods" :key="p" class="px-4 py-2.5 text-right font-mono text-xs">{{ count(usageSum(p)) }}</td>
+              <td class="px-4 py-2.5 text-right font-mono text-xs">{{ count(usage.reduce((sum, u) => sum + u.month_calls, 0)) }}</td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+        <div v-if="usage && !usage.length" class="px-6 py-10 text-center text-sm text-muted-foreground">{{ t('admin.usageNone') }}</div>
+      </div>
+      <p class="mt-2.5 text-xs leading-relaxed text-faint">{{ t('admin.usageNote') }}</p>
+    </template>
 
     <template v-else>
       <div class="mt-3.5 overflow-x-auto rounded-[10px] border bg-card">

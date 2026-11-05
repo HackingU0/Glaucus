@@ -7,12 +7,14 @@ import {
   activeSession, addMessages, collectingSessions, draftQuick, draftSession, ensureMember, failCollect, lastSession, openQuick, openSession, reopenSession, resolveMentions,
   sealSession, selectMessages, sessionByThread, sessionOfThread, sourcesOf, unregisteredAuthors, type Msg,
 } from './collect.ts'
+import { chat } from './agent.ts'
 import { config, isAllowed, stamp, today } from './config.ts'
 import { db, getRow, memberName, realName, transition, type Row } from './db.ts'
 import { runAgent } from './jobs.ts'
 import { log } from './log.ts'
 
 const CONTEXT_LIMIT = 50 // design.md §3.3: hard cap on what a mention looks back at
+const CHAT_CONTEXT = 16 // what chat sees of those: every reply costs tokens for all of it
 const IDLE_CHECK_MS = 5 * 60 * 1000
 
 // No GuildMembers intent: login looks up one member over REST (auth.ts), and that needs no intent.
@@ -78,7 +80,7 @@ async function closeThread(thread: ThreadChannel, text: string, channelExtra = '
 }
 
 /** Pulls the thread, then drafts. Also the retry for failed_step 'attachments', so it picks up where it stopped. Never rejects. */
-export async function collect(id: number) {
+export async function collect(id: number, by?: string) {
   const row = getRow(id)!
   const before = sourcesOf(id).length
   let thread: ThreadChannel | undefined
@@ -101,7 +103,7 @@ export async function collect(id: number) {
     await closeThread(thread, 'Nothing was posted in this session, so there is nothing to draft.')
     return
   }
-  await draftSession(id, before)
+  await draftSession(id, before, by)
   const text = getRow(id)!.failed_step
     ? `⚠️ The draft failed, and a bot-admin can retry it here: ${link(id)}`
     : row.entry && sourcesOf(id).length === before
@@ -154,8 +156,9 @@ async function onEnd(i: ChatInputCommandInteraction) {
   const row = activeSession(channel?.isThread() ? (channel.parentId ?? '') : i.channelId)
   if (!row?.thread_id) return i.reply({ content: 'No session is running in this channel.', flags: MessageFlags.Ephemeral })
   if (!endSession(row, i.user.username)) return i.reply({ content: 'This session has already ended.', flags: MessageFlags.Ephemeral })
+  ensureMember(i.user.id, i.user.username)
   // Reply first: collect locks the thread this may be running in.
-  await i.reply(`🏁 Session ended by <@${i.user.id}>. Writing the draft; the link will appear in <#${row.channel_id}>.`).finally(() => void collect(row.id))
+  await i.reply(`🏁 Session ended by <@${i.user.id}>. Writing the draft; the link will appear in <#${row.channel_id}>.`).finally(() => void collect(row.id, i.user.id))
 }
 
 const CANNOT_CONTINUE: Partial<Record<Row['status'], string>> = {
@@ -187,15 +190,32 @@ async function onContinue(i: ChatInputCommandInteraction) {
   }
 }
 
+/** True when the mention has been answered; false when it's a note, for the recording path below. */
+async function chatWith(m: Message, all: Message[], referenceId?: string) {
+  const me = client.user!.id
+  const isOwnReply = (x: Message) => x.author.id === me && !!x.reference // not its log lines and command replies
+  const seen = [...await fromAllowed(all.filter(keep)), ...all.filter(isOwnReply)].sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+  const turns = seen.filter((x, i) => i >= seen.length - CHAT_CONTEXT || x.id === referenceId)
+    .map((x) => (x.author.id === me ? { author: 'Glaucus', content: x.content, you: true } : { author: toMsg(x).authorName, content: toMsg(x).content }))
+  const answer = await chat(turns, { memberId: m.author.id, server: m.guild!.name })
+  if (answer?.action === 'record') return false
+  // No pings, whatever the model writes.
+  await m.reply({ content: (answer?.reply ?? 'Honk. My head isn\'t working right now, try me again in a moment. To save something, say "log this".').slice(0, 2000), allowedMentions: { parse: [], repliedUser: false } })
+  return true
+}
+
 async function onMention(m: Message) {
   if (sessionByThread(m.channelId)) {
     await m.reply({ content: 'Noted. This goes in when the session ends.', allowedMentions: { repliedUser: false } })
     return
   }
+  ensureMember(m.author.id, m.author.username)
   if (m.channel.isSendable()) await m.channel.sendTyping()
   const recent = await m.channel.messages.fetch({ limit: CONTEXT_LIMIT, before: m.id })
   const reference = m.reference ? await m.fetchReference().catch(() => null) : null
   const all = new Map([...recent, ...(reference ? [[reference.id, reference] as const] : []), [m.id, m] as const])
+  // With a session running everything is work. It can't see images, so a message with a file is always a note.
+  if (!activeSession(m.channelId) && !m.attachments.size && await chatWith(m, [...all.values()], reference?.id)) return
   const candidates = (await fromAllowed([...all.values()].filter(keep))).sort((a, b) => a.createdTimestamp - b.createdTimestamp).map(toMsg)
   const picked = await selectMessages(candidates, [m.id, ...(reference ? [reference.id] : [])], activeSession(m.channelId)?.thread_id as string | undefined)
   if (!picked.length) {
@@ -209,10 +229,9 @@ async function onMention(m: Message) {
     await addMessages(session.id, picked)
     text = `Added to the session in <#${session.thread_id}>.`
   } else {
-    ensureMember(m.author.id, m.author.username)
     const id = openQuick(m.author.id)
     await addMessages(id, picked)
-    void draftQuick(id)
+    void draftQuick(id, m.author.id)
     text = `📝 Saved to today's quick note: ${link(id)}`
   }
   const missing = unregisteredAuthors(picked)

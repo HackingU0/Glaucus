@@ -206,6 +206,7 @@ revise(input: {current: NotebookEntry, sources: SourceMessage[], images: Attachm
 | `GET /api/entries/:id/revisions` | 用户 | 修订历史 |
 | `GET /api/entries/:id/export.md` · `GET /api/export.zip?ids=` | 用户 | 导出 |
 | `GET /api/members` · `PUT /api/members/:discord_id` | admin | 改注册名 |
+| `GET /api/usage` | admin | 每位成员的 AI 令牌用量（今天、7 天、30 天、累计），来自 `ai_usage` 表 |
 | `GET /files/:attachment_id[?orig=1]` | 用户 | 附件 |
 
 ## 5. 前端

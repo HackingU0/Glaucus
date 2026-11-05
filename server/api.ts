@@ -5,7 +5,7 @@ import { strToU8, zipSync } from 'fflate'
 import { Hono, type Context } from 'hono'
 import { NotebookEntry } from '../shared/entry.ts'
 import { requireAdmin, type Env } from './auth.ts'
-import { config, now, today } from './config.ts'
+import { config, now, stamp, today } from './config.ts'
 import { db, getRow, memberName, namedSources, renameAttendee, transition, writeFts, type Row } from './db.ts'
 import { attachmentsOf, saveUpload } from './files.ts'
 import { MERGE, runAgent } from './jobs.ts'
@@ -81,6 +81,21 @@ export const api = new Hono<Env>()
     return c.body(null, 204)
   })
 
+  // Busiest first over the last 30 days. Dates compare as text: every stored timestamp is 'YYYY-MM-DD HH:mm' in the team's timezone.
+  .get('/usage', requireAdmin, (c) => {
+    const daysAgo = (n: number) => stamp(Date.now() - n * 86400_000).slice(0, 10)
+    return c.json(db.prepare(`
+      select u.member_id, coalesce(nullif(m.real_name, ''), nullif(m.discord_name, ''), u.member_id) as name, m.discord_name,
+             sum(case when u.at >= :today then u.input_tokens + u.output_tokens else 0 end) as today,
+             sum(case when u.at >= :week then u.input_tokens + u.output_tokens else 0 end) as week,
+             sum(case when u.at >= :month then u.input_tokens + u.output_tokens else 0 end) as month,
+             sum(u.input_tokens + u.output_tokens) as total,
+             sum(u.at >= :month) as month_calls,
+             max(u.at) as last_at
+      from ai_usage u left join members m on m.discord_id = u.member_id
+      group by u.member_id order by month desc, total desc`).all({ today: daysAgo(0), week: daysAgo(6), month: daysAgo(29) }))
+  })
+
   // ponytail: returns every entry in full; the web app filters / searches client-side. Paginate when it gets slow.
   .get('/entries', (c) => c.json((db.prepare('select * from entries order by date desc, id desc').all() as Row[]).map(toApi)))
 
@@ -130,12 +145,12 @@ export const api = new Hono<Env>()
     const instruction = String((await c.req.json()).instruction ?? '').trim()
     if (!instruction) return c.json({ error: 'instruction required' }, 400)
     if (!getRow(id(c))?.entry || !transition(id(c), ['draft_ready'], 'drafting', { revising: instruction })) return conflict(c)
-    void runAgent(id(c), instruction)
+    void runAgent(id(c), instruction, c.get('user').discord_id)
     return reply(c, id(c))
   })
   .post('/entries/:id/regenerate', (c) => {
     if (!transition(id(c), ['draft_ready'], 'drafting')) return conflict(c)
-    void runAgent(id(c))
+    void runAgent(id(c), undefined, c.get('user').discord_id)
     return reply(c, id(c))
   })
   .post('/entries/:id/retry', requireAdmin, async (c) => {
@@ -143,8 +158,9 @@ export const api = new Hono<Env>()
     if (!row?.failed_step) return conflict(c)
     if (row.failed_step === 'mirror') return c.json({ error: `retrying '${row.failed_step}' is not implemented yet` }, 501)
     if (!transition(row.id, ['drafting', 'draft_ready'], 'drafting', { failed_step: null, error: null, failed_at: null })) return conflict(c)
-    if (row.failed_step === 'attachments') void (await import('./bot.ts')).collect(row.id) // loaded late: nothing else in the API needs discord.js
-    else void runAgent(row.id, row.entry && row.kind !== 'web' ? MERGE : undefined) // a fresh draft would throw away hand edits
+    const by = c.get('user').discord_id
+    if (row.failed_step === 'attachments') void (await import('./bot.ts')).collect(row.id, by) // loaded late: nothing else in the API needs discord.js
+    else void runAgent(row.id, row.entry && row.kind !== 'web' ? MERGE : undefined, by) // a fresh draft would throw away hand edits
     return reply(c, row.id)
   })
   .post('/entries/:id/discard', (c) => {

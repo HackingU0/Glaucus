@@ -30,8 +30,9 @@ function sourcesText(row: Row) {
 /**
  * Caller has already moved the entry to 'drafting'. Fresh draft when no instruction, else revise the current one.
  * Success → draft_ready; failure → failed_step 'ai' (status back to draft_ready if there is a draft to show).
+ * `by` is who triggered it, for token usage; with nobody (the idle timer) it counts as the entry's creator.
  */
-export function runAgent(id: number, instruction?: string) {
+export function runAgent(id: number, instruction?: string, by?: string) {
   return enqueue(id, async () => {
     const row = getRow(id)!
     // Queued behind another job: that one may have finished, and someone may have submitted the draft since.
@@ -46,7 +47,7 @@ export function runAgent(id: number, instruction?: string) {
       const current = instruction && row.entry ? JSON.parse(row.entry as string) : undefined
       // Before someone registers, their username and their name in the chat differ; give the model one, or it lists them twice.
       const author = namedSources(row).find((m) => m.author_id === row.created_by)?.author ?? memberName(row.created_by as string)!
-      const note = await compose({ date: row.date as string, author, sources: sourcesText(row), attachments, current, instruction })
+      const note = await compose({ entryId: id, memberId: by ?? (row.created_by as string), date: row.date as string, author, sources: sourcesText(row), attachments, current, instruction })
 
       const aiUntouched = current ? row.ai_untouched : JSON.stringify([...AI_FIELDS, ...note.sections.map((_, i) => 'section:' + i)])
       db.prepare(`update entries set entry = ?, title = ?, ai_untouched = ?, status = 'draft_ready', drafted_at = ?, revising = null,
