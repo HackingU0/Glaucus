@@ -1,0 +1,32 @@
+# Deployment steps: README.md. Only Caddy is reachable from outside; the app's port stays on the internal network.
+services:
+  app:
+    build: .
+    image: glaucus
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - glaucus-data:/app/data
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env, e.g. DOMAIN=notes.example.org}
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  glaucus-data:
+  caddy-data:
+  caddy-config:
