@@ -35,7 +35,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
   const path = url.replace('https://discord.com/api/v10', '')
   if (url.startsWith('https://llm.test/')) {
     if (!llmWorks) return json({ error: { message: 'bad key' } }, 401)
-    return json({ id: 'x', created: 1, model: 'm', choices: [{ index: 0, message: { role: 'assistant', content: 'OK' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } })
+    return json({ id: 'x', created: 1, model: 'm', choices: [{ index: 0, message: { role: 'assistant', content: '{"ok": true}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } })
   }
   if (path === '/applications/@me') {
     return (init?.headers as Record<string, string>).Authorization === 'Bot good-bot' ? json({ id: '999', name: 'Glaucus', flags: 1 << 19, redirect_uris: [`${SITE}/auth/callback`] }) : json({}, 401)

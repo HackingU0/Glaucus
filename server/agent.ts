@@ -1,15 +1,15 @@
 // design.md §4, §11. Output.object over a hand-written schema prompt: with thinking on, deepseek-flash often echoes a
 // schema pasted into our prompt back as its answer (M0b); the SDK's own injection did not. Invalid replies are retried.
-import { createDeepSeek } from '@ai-sdk/deepseek'
 import { generateText, NoObjectGeneratedError, Output, stepCountIs, tool, type LanguageModel, type ModelMessage, type UserContent } from 'ai'
 import { z } from 'zod'
 import { NI, NotebookEntry } from '../shared/entry.ts'
 import { config } from './config.ts'
 import { db, recordUsage } from './db.ts'
+import { createModel } from './llm.ts'
 
 let override: LanguageModel | undefined
 export const setModel = (m: LanguageModel) => { override = m } // tests, demo
-const getModel = () => override ?? createDeepSeek({ apiKey: config.llmKey, baseURL: config.llm.base_url })(config.llm.model) // /setup can change these
+const getModel = () => override ?? createModel(config.llm, config.llmKey) // /setup can change these
 
 const SYSTEM = `You turn an FTC robotics team's raw notes (chat messages or pasted text, any language, plus photos) into one English engineering notebook entry.
 
