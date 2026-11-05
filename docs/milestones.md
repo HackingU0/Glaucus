@@ -1,133 +1,133 @@
-# 目标与里程碑
+# Goals and Milestones
 
-设计细节见 [design.md](design.md)。
+See [design.md](design.md) for design details.
 
-## 目标
+## Goals
 
-### 要实现的
+### What to build
 
-1. **低门槛采集**：队员可以在 Discord 里随手记（session thread / @bot），也可以在网页上直接录入（粘文字 + 传图）。
-2. **自动整理**：LLM 把原始素材整理成结构化的英文 `NotebookEntry`。只写素材里出现过的事实，数据、型号、测量值不编造，缺失的标 `[needs input]`。
-3. **网页审核编辑**：草稿页左边原始素材、右边结构化表单；可以手改字段、调图片顺序和 caption、用自然语言让 AI 改稿、重新生成。
-4. **人工审核后归档**：提交后由另一名队员在网页上批准；归档后只有 bot-admin 能改，留修订记录。可选镜像到私有 GitHub 仓库。
-5. **可检索**：网页上浏览和全文搜索历史笔记；agent 写新笔记时能查历史，做跨活动关联。
-6. **学生对内容负责**：agent 只产出和修改笔记内容，以及聊天时的回复文字；提交、批准、git、发消息全由确定性代码执行。
-7. **全部私有**：所有页面和图片都要登录；镜像仓库、备份桶私有。
-8. **好维护**：失败可见、能从失败步骤重试；每日备份；单台 VPS 一条 `docker compose up` 部署。
+1. **Low-friction capture**: Team members can jot notes casually in Discord (session thread / @bot), or enter them directly on the web (paste text + upload images).
+2. **Automatic organization**: The LLM organizes raw material into a structured English `NotebookEntry`. It writes only facts that appeared in the material; data, model numbers, and measurements are not fabricated, and missing items are marked `[needs input]`.
+3. **Web review and editing**: The draft page has raw material on the left and a structured form on the right; you can manually edit fields, adjust image order and captions, use natural language to have the AI revise the draft, and regenerate.
+4. **Archive after human review**: After submission, another team member approves it on the web; after archiving, only bot-admin can modify it, with revision records kept. Optionally mirror to a private GitHub repository.
+5. **Searchable**: Browse and full-text search historical notes on the web; when the agent writes new notes, it can query history and make cross-event connections.
+6. **Students are responsible for the content**: The agent only produces and modifies note content, plus chat reply text; submission, approval, git, and sending messages are all executed by deterministic code.
+7. **Entirely private**: All pages and images require login; the mirror repository and backup bucket are private.
+8. **Easy to maintain**: Failures are visible and can be retried from the failed step; daily backups; deployment on a single VPS with one `docker compose up`.
 
-### 不做的
+### What not to build
 
-- 规则 / SDK 文档问答。
-- 多租户（数据表留 `team_id`，真开放时再做）。
-- 实时监听 Discord 消息（session 结束时一次性拉取）。
-- 自动后台重试队列（失败由 `bot-admin` 手动重试）。
-- GitHub PR 审核流程（改为网页 Approve）。
-- 公开分享 / 公开展示。
+- Rules / SDK documentation Q&A.
+- Multi-tenancy (the data tables reserve `team_id`; build it when we actually open up).
+- Real-time listening to Discord messages (pull everything at once when the session ends).
+- Automatic background retry queue (failures are manually retried by `bot-admin`).
+- GitHub PR review flow (replaced by web Approve).
+- Public sharing / public display.
 
-## 里程碑
+## Milestones
 
-原则：先在网页上打通 **录入 → 草稿 → 编辑 → 批准** 闭环，Discord 作为信息源后接入。每个里程碑都有可验证的验收标准。
+Principle: first close the loop **entry → draft → edit → approve** on the web, then connect Discord as an information source. Each milestone has verifiable acceptance criteria.
 
-### M0 — LLM 实测（spike，Python）✅
+### M0 — LLM empirical testing (spike, Python) ✅
 
-风险最大的假设先验证，不写进正式代码。
+Verify the riskiest assumptions first, without writing them into production code.
 
-- [x] 一个脚本：pydantic-ai + deepseek-flash，输入几条假消息 → 输出 `NotebookEntry`
-- [x] 验证 function calling：注册一个假 tool，确认模型会调用
-- [x] 验证图片输入：传一张压缩图，确认模型能描述
-- [x] 记录结论；不行的项换 OpenAI / Anthropic 再测
+- [x] A script: pydantic-ai + deepseek-flash, input a few fake messages → output `NotebookEntry`
+- [x] Verify function calling: register a fake tool and confirm the model calls it
+- [x] Verify image input: pass a compressed image and confirm the model can describe it
+- [x] Record conclusions; retest failing items with OpenAI / Anthropic
 
-**验收**：三项全部通过（或已确定替代 provider）。
+**Acceptance**: All three pass (or a replacement provider has been determined).
 
-### M0b — LLM 实测（spike，TS）✅
+### M0b — LLM empirical testing (spike, TS) ✅
 
-技术栈换成 TS，同样三项用 AI SDK 重测。
+Switch the tech stack to TS and retest the same three items with the AI SDK.
 
-- [x] 一个脚本：AI SDK + `@ai-sdk/deepseek`，假消息 → zod 校验的 `NotebookEntry`
-- [x] 确定可用的结构化输出模式（thinking 模式下 tool / json 模式可能不支持，退路为 prompt 内 schema + zod 解析 + 重试）
-- [x] 验证 function calling 与结构化输出共存
-- [x] 验证图片输入
-- [x] 结论写回 design.md §11
+- [x] A script: AI SDK + `@ai-sdk/deepseek`, fake messages → zod-validated `NotebookEntry`
+- [x] Determine a usable structured output mode (in thinking mode, tool / json modes may not be supported; fallback is schema-in-prompt + zod parsing + retry)
+- [x] Verify function calling coexists with structured output
+- [x] Verify image input
+- [x] Write conclusions back to design.md §11
 
-**验收**：三项全部通过，输出模式已确定。
+**Acceptance**: All three pass, and the output mode is determined.
 
-### M1 — 骨架
+### M1 — Skeleton
 
-- [x] 仓库结构 `server/` / `web/` / `shared/`，`package.json`、`tsconfig`，`config.toml` + `.env` 加载
-- [x] SQLite schema 初始化（members / entries / attachments / entry_revisions / entries_fts，含每频道一个 session 的唯一索引）
-- [x] Hono 服务 + Vue（Vite）构建产物托管，Tailwind + shadcn-vue 接好；所有路由和附件 URL 默认要求登录
-- [x] discord.js bot 上线，开启 Message Content intent
-- [ ] Discord OAuth 登录 + 服务器成员检查 + 首次登录填真名；签名 cookie（真实账号登录已通过，非队员被拒待第二个账号确认）
-- [x] 日志频道发送函数
+- [x] Repository structure `server/` / `web/` / `shared/`, `package.json`, `tsconfig`, `config.toml` + `.env` loading
+- [x] SQLite schema initialization (members / entries / attachments / entry_revisions / entries_fts, including the unique index for one session per channel)
+- [x] Hono server + Vue (Vite) build artifact hosting, Tailwind + shadcn-vue wired up; all routes and attachment URLs require login by default
+- [x] discord.js bot online, with Message Content intent enabled
+- [ ] Discord OAuth login + server member check + real name on first login; signed cookie (real account login has passed; non-team-member rejection awaits confirmation with a second account)
+- [x] Log channel send function
 
-**验收**：浏览器用 Discord 登录并填好真名；非队员登录被拒；未登录访问附件 URL 被拒；日志频道收到"bot started"。
+**Acceptance**: Log in with Discord in the browser and fill in real name; non-team-member login is rejected; unauthenticated access to attachment URLs is rejected; the log channel receives "bot started".
 
-### M2 — 网页录入与草稿 ✅
+### M2 — Web entry and drafts ✅
 
-- [x] `NotebookEntry` zod schema（`shared/`，含 `title`）
-- [x] 新建 entry 页：粘贴文字 + 上传附件（图片 sharp 压缩 1600px，非图片只存原文件），日期默认今天
-- [x] Agent + 工具（`search_entries`、`get_entry`）
-- [x] 事实约束 system prompt
-- [x] 异步生成草稿，前端轮询状态
-- [x] 草稿页：左原始素材，右结构化表单；保存（`updated_at` 乐观锁，`drafting` 期间只读）
-- [x] AI 改稿输入框、重新生成（弹确认）、丢弃
-- [x] entry 列表 + 全文搜索（前端子串匹配；笔记多到列表明显变慢时再换 FTS5）
-- [x] 一个 mock model 测试：假消息 → 草稿 → 校验通过，不调真 API
+- [x] `NotebookEntry` zod schema (`shared/`, including `title`)
+- [x] New entry page: paste text + upload attachments (images compressed by sharp to 1600px, non-images store original file only), date defaults to today
+- [x] Agent + tools (`search_entries`, `get_entry`)
+- [x] Fact-constraint system prompt
+- [x] Asynchronous draft generation, frontend polls status
+- [x] Draft page: raw material on the left, structured form on the right; save (`updated_at` optimistic locking, read-only during `drafting`)
+- [x] AI revision input box, regenerate (with confirmation dialog), discard
+- [x] Entry list + full-text search (frontend substring matching; switch to FTS5 when there are enough notes that the list is noticeably slow)
+- [x] A mock model test: fake messages → draft → validation passes, no real API call
 
-**验收**：网页粘文字传图 → 出现英文草稿；手改一个字段、用 AI 改一句，都正确保存。
+**Acceptance**: Paste text and upload images on the web → an English draft appears; manually edit a field and use AI to revise a sentence, both save correctly.
 
-**已知风险**：AI 改稿是整篇重新输出，代码不保证未提及的内容不变。2026-11-04 实测 4 次：3 次手改内容都保留，1 次标题和图片说明被改掉（当时的文字带 `VERIFY` 标记，像占位内容）。
+**Known risk**: AI revision re-outputs the whole document, and the code does not guarantee that unmentioned content stays unchanged. Tested 4 times on 2026-11-04: 3 times manual edits were preserved, 1 time the title and image captions were changed (the text at the time had `VERIFY` markers, looking like placeholder content).
 
-### M3 — 批准与归档（闭环完成）✅
+### M3 — Approval and archiving (loop complete) ✅
 
-- [x] 提交 → `pending_approval`；他人 Approve / 填理由退回；提交者本人不能批准
-- [x] `pending_approval` 期间被编辑 → 回到 `draft_ready`
-- [x] 批准时定 slug、渲染 Markdown（模板字符串）
-- [x] 归档后只读；bot-admin 修改写 `entry_revisions`，网页可看修订历史
-- [x] 单条 `.md` 下载、选中多条打包 zip（含压缩图）
-- [x] 状态变化写日志频道
+- [x] Submit → `pending_approval`; others Approve / fill in a reason to return; the submitter cannot approve their own submission
+- [x] Edited during `pending_approval` → back to `draft_ready`
+- [x] On approval, fix slug and render Markdown (template string)
+- [x] Read-only after archiving; bot-admin modifications write `entry_revisions`, revision history viewable on the web
+- [x] Download a single `.md`, package selected multiple entries into a zip (with compressed images)
+- [x] State changes written to the log channel
 
-**验收**：A 网页录入 → 草稿 → 提交；A 自己点不了 Approve；B 退回，A 改完重提，B 批准 → 状态 `approved`，能下载 `.md`；bot-admin 改一个字段，修订历史里看得到旧版本。
+**Acceptance**: A enters on the web → draft → submit; A cannot click Approve themselves; B returns it, A revises and resubmits, B approves → status `approved`, `.md` can be downloaded; bot-admin changes a field, and the old version is visible in revision history.
 
-### M4 — Discord 接入 ✅
+### M4 — Discord integration ✅
 
-- [x] `/session start [subsystem]` 在当前频道建 thread；该频道已有 session 时拒绝并给链接
-- [x] `/session end`（作用于当前频道的 session）
-- [x] 闲置超时检测（后台循环，看 thread 最后消息时间）
-- [x] 结束时拉取 thread 全部历史 → `source_messages`（`<@id>` 提及由代码换成真名），下载附件
-- [x] 生成草稿，thread 和父频道都回复网页链接；结束时锁定 thread，发完链接后归档
-- [x] `/continue` 重新打开 thread，新消息合并进现有草稿
-- [x] 监听 @bot 提及；代码取最近 50 条（硬上限），模型挑选相关消息
-- [x] 归属规则：thread 内只回"已记录"；所在频道有 session 则追加到它；否则并入当天未提交的 quick，没有就新建
-- [x] 未注册者标 `[unregistered]` 并提醒去网页登录
+- [x] `/session start [subsystem]` creates a thread in the current channel; if the channel already has a session, reject and give the link
+- [x] `/session end` (acts on the current channel's session)
+- [x] Idle timeout detection (background loop, checks the thread's last message time)
+- [x] On end, pull the entire thread history → `source_messages` (`<@id>` mentions replaced with real names by code), download attachments
+- [x] Generate draft, reply with the web link in both the thread and parent channel; lock the thread on end, archive after sending the link
+- [x] `/continue` reopens the thread, new messages merged into the existing draft
+- [x] Listen for @bot mentions; code takes the most recent 50 (hard cap), model selects relevant messages
+- [x] Attribution rules: in a thread only reply "recorded"; if the channel has a session, append to it; otherwise merge into that day's unsubmitted quick, or create a new one
+- [x] Unregistered users marked `[unregistered]` and reminded to log in on the web
 
-**验收**：开一个 session、发文字和图片、结束后 thread 里出现链接，打开是完整草稿；无 session 时 @bot 一条带图消息，生成快速记录草稿；有 session 的频道里 @bot，内容并入该 session；两个频道能同时各开一个 session。
+**Acceptance**: Start a session, send text and images, after ending a link appears in the thread, opening it shows a complete draft; with no session, @bot a message with an image, generating a quick-capture draft; in a channel with a session, @bot and the content merges into that session; two channels can each have a session at the same time.
 
-### M5 — 运维与部署
+### M5 — Operations and deployment
 
-- [ ] 首次设置页：填写并测试 LLM、Discord，选择允许的角色（可多个）和 `bot-admin` 角色，可测试某个成员能否进入；其他人登录和使用 bot 都报错（真实账号被拒待第二个账号确认）
-- [x] 网页上 `bot-admin` 可查看每位成员的 AI 令牌用量（防滥用）
-- [ ] 各步骤失败记录 `failed_step` + 日志频道报错 + 网页显示
-- [ ] 网页上 `bot-admin` 重试按钮、修改他人注册名
-- [ ] Dockerfile + Compose（app + Caddy）+ VPS 部署说明
-- [ ] 每日备份 cron（`sqlite3 .backup` + 原图 → rclone → B2 / R2）
+- [ ] First-time setup page: fill in and test LLM, Discord, select allowed roles (multiple allowed) and the `bot-admin` role, can test whether a member can enter; other people logging in and using the bot both get errors (real account rejection awaits confirmation with a second account)
+- [x] On the web, `bot-admin` can view each member's AI token usage (anti-abuse)
+- [ ] Record `failed_step` for each step failure + log channel error + web display
+- [ ] On the web, `bot-admin` retry button, modify others' registered names
+- [ ] Dockerfile + Compose (app + Caddy) + VPS deployment instructions
+- [ ] Daily backup cron (`sqlite3 .backup` + original images → rclone → B2 / R2)
 
-**验收**：人为制造一次 LLM 调用失败（如填错 API key），日志频道报错，改回后网页上重试成功；备份文件出现在私有对象存储中。
+**Acceptance**: Artificially cause an LLM call failure (e.g., wrong API key), the log channel reports the error, after fixing it retry on the web succeeds; the backup file appears in private object storage.
 
-## 待定决策
+## Pending decisions
 
-1. **Discord 的痛点**：最麻烦的是审稿改稿，还是队员不习惯用 slash command？如果是后者，M4 还能再砍。
+1. **Discord pain points**: Is the most troublesome part reviewing and revising drafts, or team members not being used to slash commands? If the latter, M4 can be cut further.
 
-## 已定决策（2026-11-04）
+## Decided decisions (2026-11-04)
 
-- **审核门**：网页 Approve（提交者以外的队员批准），不走 GitHub PR；GitHub 只做可选的私有只读镜像。
-- **可见性**：全部私有。
-- **并行 session**：每个频道最多一个。
-- **归档后修改**：只有 bot-admin 能改，留修订记录。
+- **Review gate**: Web Approve (approved by a team member other than the submitter), not GitHub PR; GitHub is only an optional private read-only mirror.
+- **Visibility**: Entirely private.
+- **Parallel sessions**: At most one per channel.
+- **Post-archive modification**: Only bot-admin can modify, with revision records kept.
 
-## 以后再说（未排期）
+## Later (unscheduled)
 
-- **GitHub 镜像**：私有仓库 + `contents:write` PAT，批准 / 修改后直推 main（`child_process` git）。数据备份由 M5 的每日备份负责，等真想在 GitHub 上看笔记历史再做。
-- **PDF 导出**：多写一个模板。
-- **多平台采集**：网页提供录入 API，写一个薄的 AstrBot 插件接 QQ / 微信 / Telegram 等，采集后调 API、回网页链接。等真有非 Discord 平台的需求再做。
-- **多租户**：`/setup` 向导、权限隔离、后台。等真开放给其他队伍再做。
+- **GitHub mirror**: Private repository + `contents:write` PAT, push directly to main after approval / modification (`child_process` git). Data backup is handled by the M5 daily backup; do this when we actually want to view note history on GitHub.
+- **PDF export**: Write one more template.
+- **Multi-platform capture**: The web provides an entry API; write a thin AstrBot plugin to connect QQ / WeChat / Telegram, etc., call the API after capture, and reply with the web link. Do this when there is a real need for non-Discord platforms.
+- **Multi-tenancy**: `/setup` wizard, permission isolation, admin backend. Do this when we actually open up to other teams.
