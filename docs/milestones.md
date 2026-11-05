@@ -56,7 +56,7 @@
 - [x] 仓库结构 `server/` / `web/` / `shared/`，`package.json`、`tsconfig`，`config.toml` + `.env` 加载
 - [x] SQLite schema 初始化（members / entries / attachments / entry_revisions / entries_fts，含每频道一个 session 的唯一索引）
 - [x] Hono 服务 + Vue（Vite）构建产物托管，Tailwind + shadcn-vue 接好；所有路由和附件 URL 默认要求登录
-- [ ] discord.js bot 上线，开启 Message Content intent
+- [x] discord.js bot 上线，开启 Message Content intent
 - [ ] Discord OAuth 登录 + 服务器成员检查 + 首次登录填真名；签名 cookie（真实账号登录已通过，非队员被拒待第二个账号确认）
 - [x] 日志频道发送函数
 
@@ -89,16 +89,17 @@
 
 **验收**：A 网页录入 → 草稿 → 提交；A 自己点不了 Approve；B 退回，A 改完重提，B 批准 → 状态 `approved`，能下载 `.md`；bot-admin 改一个字段，修订历史里看得到旧版本。
 
-### M4 — Discord 接入
+### M4 — Discord 接入 ✅
 
-- [ ] `/session start [subsystem]` 在当前频道建 thread；该频道已有 session 时拒绝并给链接
-- [ ] `/session end`、`/session kill`（作用于当前频道的 session）
-- [ ] 闲置超时检测（后台循环，看 thread 最后消息时间）
-- [ ] 结束时拉取 thread 全部历史 → `source_messages`（`<@id>` 提及由代码换成真名），下载附件
-- [ ] 生成草稿，thread 里回复网页链接
-- [ ] 监听 @bot 提及；`fetch_messages` 工具（硬上限 50）
-- [ ] 归属规则：thread 内只回"已记录"；所在频道有 session 则追加到它；否则并入当天未提交的 quick，没有就新建
-- [ ] 未注册者标 `[unregistered]` 并提醒去网页登录
+- [x] `/session start [subsystem]` 在当前频道建 thread；该频道已有 session 时拒绝并给链接
+- [x] `/session end`（作用于当前频道的 session）
+- [x] 闲置超时检测（后台循环，看 thread 最后消息时间）
+- [x] 结束时拉取 thread 全部历史 → `source_messages`（`<@id>` 提及由代码换成真名），下载附件
+- [x] 生成草稿，thread 和父频道都回复网页链接；结束时锁定 thread，发完链接后归档
+- [x] `/continue` 重新打开 thread，新消息合并进现有草稿
+- [x] 监听 @bot 提及；代码取最近 50 条（硬上限），模型挑选相关消息
+- [x] 归属规则：thread 内只回"已记录"；所在频道有 session 则追加到它；否则并入当天未提交的 quick，没有就新建
+- [x] 未注册者标 `[unregistered]` 并提醒去网页登录
 
 **验收**：开一个 session、发文字和图片、结束后 thread 里出现链接，打开是完整草稿；无 session 时 @bot 一条带图消息，生成快速记录草稿；有 session 的频道里 @bot，内容并入该 session；两个频道能同时各开一个 session。
 

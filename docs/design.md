@@ -50,14 +50,15 @@ FTC 队伍的工程笔记系统：队员在 Discord 里随手记录或在网页�
 - `/session end`（在 thread 里或它的父频道里执行）结束该频道的 session；或 thread **闲置 4 小时**（可配）自动结束。闲置判断只看 thread 最后一条消息时间。
 - **结束时一次性拉取** thread 全部历史 + 下载附件（此时 URL 新签发，不会过期）。不做实时监听，因此消息编辑 / 删除自然生效。
 - 原始消息快照存入 entry（`source_messages`），供后续改稿时 agent 参照。
-- 结束后生成草稿，在 thread 里回复草稿的网页链接。
+- 结束时先锁定 thread（需要 bot 有 Manage Threads），避免之后发的消息被漏掉却没有提示；生成草稿后在 thread 和父频道都回复网页链接，再归档 thread，让它离开侧边栏。thread 里没有任何消息时直接丢弃，不调用 LLM。开错的 session 这样处理：没发消息就 `/session end`，发过消息就结束后在网页上丢弃，所以不设 `/session kill`。
+- `/continue`（在父频道或 thread 里执行，普通成员在被锁定的 thread 里可能用不了，所以父频道是主入口）：解锁并恢复该频道最近一个 session，或所在 thread 的 session，回到 `collecting`。只有 `draft_ready` 的草稿能恢复；该频道已有进行中的 session 时拒绝。再次结束时新消息合并进现有草稿，没有新消息就不调用 LLM，草稿不变。恢复期间网页上看不到也改不了这份草稿。
 
 ### 3.3 @bot 快速记录
 
-- 在任意频道 @bot：agent 用 `fetch_messages` 自行往前翻上下文，**硬上限 50 条**，挑出相关消息，立即下载其中的附件。
+- 在任意频道 @bot：代码取之前最近的 **50 条**消息（硬上限），由模型返回相关消息的编号，代码按编号保存，并立即下载其中的附件。@bot 那条和它回复的消息一定保留；模型挑选失败时只用这两条。
 - 归属（规则写死）：
   1. 在 session thread 里 @bot → 不用另外处理（结束时会整体拉取），只回一句"已记录"。
-  2. 所在频道有进行中的 session → 挑出的消息追加到该 session 的 `source_messages`。
+  2. 所在频道有进行中的 session → 只从 session 开始之后的消息里挑选（@bot 那条和它回复的消息除外），追加到该 session 的 `source_messages`。更早的消息可能已属于别的笔记。
   3. 否则 → 当天的**快速记录**（`kind=quick`）：当天已有一条还没提交的 quick（`collecting` / `drafting` / `draft_ready`）就并进去，由 agent 把新素材合并进草稿；没有或已提交就新建一条。回复网页链接。
 - "当天"按 `config.toml` 里的队伍时区算。
 
@@ -81,9 +82,8 @@ FTC 队伍的工程笔记系统：队员在 Discord 里随手记录或在网页�
 |---|---|
 | `search_entries(query)` | FTS5 查历史笔记，做跨活动关联（只查 `approved`） |
 | `get_entry(id)` | 读某条历史笔记全文 |
-| `fetch_messages(channel, limit, before?)` | 往前翻上下文（硬上限 50），仅 @bot 场景（M4） |
 
-真名和附件不需要工具：代码把作者真名、附件编号和图片直接放进提示，Discord 消息里的 `<@id>` 提及在拉取时换成真名。模型在输出里按编号引用图片，不属于这条笔记的编号由代码丢弃。
+agent 碰不到 Discord：@bot 的上下文由代码取好再交给模型挑选（§3.3）。真名和附件也不需要工具：代码把作者真名、附件编号和图片直接放进提示，Discord 消息里的 `<@id>` 提及在拉取时换成真名。模型在输出里按编号引用图片，不属于这条笔记的编号由代码丢弃。
 
 **agent 不得拥有**：提交、批准、退回、git 操作、发 Discord 消息。这些是确定性流程，由代码执行。agent 只产出和修改笔记内容——这是"学生对内容负责"在代码层面的保证。
 
@@ -147,6 +147,7 @@ collecting → drafting → draft_ready ⇄ pending_approval → approved
                 └───────────┘
               （AI 改稿 / 重新生成）
 draft_ready → discarded
+drafting → discarded（空 session，或失败后没有任务在跑）
 ```
 
 网页录入的 entry 从 `drafting` 开始。失败不是一种状态，记在 `failed_step` / `error` 字段里（§10.2）。
@@ -183,11 +184,9 @@ draft_ready → discarded
 - **未注册者**（没在网页登录过）出现在 Discord session 中：用 Discord 显示名临时代替，草稿中标 `[unregistered]`，并在 thread 里提醒一次去网页登录。
 - **角色**：
   - 队员（任何已登录者）：编辑草稿、提交、批准 / 退回他人提交的 entry。
-  - `bot-admin`（Discord 角色，登录时由 bot 查询）：
-    - 网页上：失败 entry 从失败步骤重试、修改他人注册名、修改已归档的 entry。
-    - Discord：`/session kill` 强制结束当前频道的 session。
+  - `bot-admin`（Discord 角色，登录时由 bot 查询）：网页上可以从失败步骤重试、修改他人注册名、修改已归档的 entry。
 - **配置**：
-  - `config.toml`：Discord 服务器、日志频道、`bot-admin` 角色、站点 URL、队伍时区、输出语言、子系统列表、闲置超时、图片上限、上下文上限、LLM `base_url` / 模型、镜像仓库（可选）。改后重启生效。
+  - `config.toml`：Discord 服务器、日志频道、`bot-admin` 角色、站点 URL、队伍时区、输出语言、子系统列表、闲置超时、图片上限、LLM `base_url` / 模型、镜像仓库（可选）。改后重启生效。
   - `.env`：Discord bot token、OAuth client secret、cookie 签名密钥、LLM API key、GitHub PAT（可选）。
 
 ## 9. 数据模型（SQLite）

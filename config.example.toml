@@ -3,6 +3,7 @@ site_url = "http://localhost:5173"    # OAuth redirect = site_url + /auth/callba
 timezone = "America/Los_Angeles"      # "today" and all displayed times use this
 subsystems = ["Intake", "Drivetrain", "Outtake", "Software", "Strategy", "Outreach"]
 image_limit = 20                      # images per entry sent to the LLM
+session_idle_hours = 4                # a session ends after this long without a message
 
 [discord]
 client_id = ""

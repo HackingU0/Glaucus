@@ -26,6 +26,10 @@ export const app = new Hono<Env>()
 if (import.meta.main) {
   markInterrupted()
   if (config.devLogin) await (await import('./demo.ts')).startDemo()
+  // Not in demo mode: its sample sessions point at channels that don't exist. A dead bot must not take the web app down.
+  else if (config.botToken && config.discord.guild_id) {
+    void import('./bot.ts').then((b) => b.startBot()).catch((err) => log(`❌ Discord bot failed to start · ${err.message}`))
+  }
   const port = Number(process.env.PORT ?? 8787)
   serve({ fetch: app.fetch, port }, () => {
     console.log(`Glaucus on :${port}${config.devLogin ? ' (DEV_LOGIN on: /auth/dev is open — never in production)' : ''}`)

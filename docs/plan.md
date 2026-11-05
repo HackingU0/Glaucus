@@ -169,12 +169,16 @@ revise(input: {current: NotebookEntry, sources: SourceMessage[], images: Attachm
 - 失败 → `failed_step='mirror'`，不改 `approved` 状态。
 
 ### bot.ts
-- intents：Guilds、GuildMessages、MessageContent、GuildMembers（查成员和角色）。
-- 启动时注册 guild 级 slash commands（`/session start|end|kill`），改完重启立即生效。
-- `/session start`：直接 insert（`kind=session, status=collecting`），唯一索引冲突就查出现有的、回链接。再建 thread，把 `thread_id` 写回。
-- 结束（end / kill / 闲置）：`transition(collecting → drafting)` 抢锁成功的才继续，所以 end 和闲置循环同时触发也只跑一次 → 分页拉 thread 全部消息（每页 100）→ 下载附件 → 写 `source_messages` → `enqueue(draft)` → 在 thread 里回链接。
-- 闲置循环：`setInterval` 每 5 分钟，对每个 `collecting` 的 session 取 thread 的 `lastMessageId` 对应时间，超时就结束。
-- `@bot`：按 design §3.3 的三条规则归属。插入 quick 撞了唯一索引 → 改为追加到那一条 + `enqueue(revise '把新消息并入草稿')`。
+- 只负责和 Discord 打交道；归属、去重、状态变化都在不依赖 discord.js 的 `collect.ts` 里，可以直接单测。
+- intents：Guilds、GuildMessages、MessageContent。不需要 GuildMembers：登录用 REST 查单个成员。
+- 启动时注册 guild 级 slash commands（`/session start|end`、`/continue`），改完重启立即生效。演示模式下不启动 bot。服务器权限需要 Manage Threads（锁定和解锁 thread）。
+- `/session start`：先查当前频道有没有进行中的 session，有就回链接；再 insert（唯一索引兜底）→ 从回复消息建 thread（自动归档 1 天，长于闲置上限）→ 写回 `thread_id`。建 thread 失败就删掉这一行。
+- 结束（end / 闲置）：`transition(collecting → drafting)` 抢锁成功的才继续，所以 end 和闲置循环同时触发也只跑一次 → 锁定 thread（没权限只记日志，流程继续）→ 分页拉 thread 全部消息（每页 100）→ 按消息 ID 去重，逐条下载附件并写入 `source_messages` → 写 `ended_at` → 生成草稿 → 在 thread 和父频道回链接 → 归档 thread。空 session 直接丢弃。
+- `/continue`：`transition(draft_ready → collecting)`，清空 `ended_at`，再解锁并取消归档 thread；Discord 调用失败就改回去。再次结束时有新消息走 `MERGE` 改稿，没有就直接回到 `draft_ready`。`failed_step='ai'` 的 session / quick 已有草稿时，重试也走 `MERGE`，不重新生成。
+- 附件步骤失败记 `failed_step='attachments'`，重试时重新拉取，已保存的消息会跳过。重启时 `ended_at` 为空的 session 也按这个步骤处理。
+- 闲置循环：启动时和之后每 5 分钟，对每个 `collecting` 的 session 取 thread 的 `lastMessageId` 对应时间（没有消息就用 thread 自身的创建时间），超时就结束。
+- `@bot`：只响应真正的提及，忽略 @everyone、回复时的自动提及和 bot 消息。代码取之前 50 条，`pickMessages()` 挑选，再按 design §3.3 的三条规则归属。频道有进行中的 session 时，候选只保留 ID 大于 `thread_id` 的消息（thread 从 session 的开始回复建立，两者 ID 相同）。quick 的查找和插入是同步的，不会撞唯一索引；已有草稿时走改稿路径合并，有任务在跑就排在后面。
+- 未注册者：source 里用 Discord 显示名，结束时（@bot 时在回复里）提醒一次去登录。created_by 先写一条只有 Discord 名的 `members` 记录，登录时覆盖。
 
 ## 4. HTTP API
 
@@ -244,8 +248,8 @@ revise(input: {current: NotebookEntry, sources: SourceMessage[], images: Attachm
 
 ### M4 — Discord 接入
 1. slash commands 注册；`/session start`（唯一索引兜底）。
-2. 结束流程（抢锁 → 分页拉消息 → 下载附件 → enqueue draft → 回链接），end / kill / 闲置循环共用。
-3. `@bot` 处理：`fetch_messages` 工具只在这里传给 agent；三条归属规则；quick 撞索引改走合并。
+2. 结束流程（抢锁 → 分页拉消息 → 下载附件 → 生成草稿 → 回链接），end 和闲置循环共用；附件步骤可重试。
+3. `@bot` 处理：代码取上下文，`pickMessages()` 挑选；三条归属规则；quick 合并。
 4. 未注册者处理。
 
 ### M5 — 运维与部署
@@ -265,7 +269,7 @@ revise(input: {current: NotebookEntry, sources: SourceMessage[], images: Attachm
 | `render.test.ts` | 一个固定 entry 渲染成固定 Markdown（快照写在测试里）；slugify 边界：中文标题、超长、全符号 |
 | `api.test.ts` | 用 Hono 的 `app.request()`：提交者 approve 被拒、非 admin 改 approved 被拒、未登录拿 `/files` 被拒 |
 
-Discord 流程靠 M4 验收手测，不做 mock。`npm run check` = `tsc --noEmit && vue-tsc --noEmit -p web`。
+`collect.test.ts` 测 Discord 收集的分支逻辑（去重续传、归属、合并、中断恢复），不连 Discord。真实的 Discord 流程靠 M4 验收手测，不做 mock。`npm run check` = `tsc --noEmit && vue-tsc --noEmit -p web`。
 
 ## 8. 风险
 

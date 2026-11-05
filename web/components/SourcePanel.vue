@@ -31,7 +31,7 @@ const images = computed(() => props.entry.attachments.filter((a) => isImage(a.fi
 const subtitle = computed(() => {
   const e = props.entry
   const msgs = e.source_messages
-  if (!msgs.length) return t(e.kind === 'quick' ? 'source.quick' : 'source.web', { time: e.created_at.slice(5) })
+  if (!msgs.length || e.kind === 'quick') return t(e.kind === 'quick' ? 'source.quick' : 'source.web', { time: e.created_at.slice(5) })
   return t('source.session', {
     channel: e.channel ?? '',
     n: msgs.length,

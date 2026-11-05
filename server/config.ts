@@ -7,6 +7,7 @@ const Config = z.object({
   timezone: z.string(),
   subsystems: z.array(z.string()),
   image_limit: z.number().int().default(20),
+  session_idle_hours: z.number().default(4),
   discord: z.object({
     client_id: z.string().default(''),
     guild_id: z.string().default(''),
@@ -32,5 +33,6 @@ export const config = {
 if (!config.cookieSecret) throw new Error('COOKIE_SECRET is not set')
 
 /** 'YYYY-MM-DD HH:mm' in the team's timezone. Every stored timestamp uses this. */
-export const now = () => new Date().toLocaleString('sv', { timeZone: config.timezone }).slice(0, 16)
+export const stamp = (ms: number) => new Date(ms).toLocaleString('sv', { timeZone: config.timezone }).slice(0, 16)
+export const now = () => stamp(Date.now())
 export const today = () => now().slice(0, 10)

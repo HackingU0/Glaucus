@@ -80,6 +80,25 @@ export async function compose(input: AgentInput): Promise<NotebookEntry> {
   throw new Error(`LLM output invalid after 3 attempts: ${lastError.slice(0, 500)}`)
 }
 
+const PICK = `Someone @mentioned the engineering notebook bot in an FTC robotics team's chat. Below are recent messages, numbered oldest to newest; the last one is the mention.
+Choose the messages that belong in the note the mention asks to record. If the mention has no text, choose what it most likely refers to. Leave out unrelated chat.
+Reply with only a JSON object: {"numbers": [...]}.`
+
+/** Numbers of the messages worth keeping. Never throws: bot.ts always keeps the mention itself, so a failure here costs context, not the note. */
+export async function pickMessages(msgs: { author: string; content: string; files: string[] }[]): Promise<number[]> {
+  const list = msgs.map((m, i) => `${i}. ${m.author}: ${m.content || '(no text)'}${m.files.length ? ` [attached: ${m.files.join(', ')}]` : ''}`).join('\n')
+  try {
+    const r = await generateText({
+      model, instructions: PICK, messages: [{ role: 'user', content: list }],
+      output: Output.object({ schema: z.object({ numbers: z.array(z.number().int()) }) }),
+    })
+    return r.output.numbers
+  } catch (err) {
+    console.error('pickMessages failed:', (err as Error).message)
+    return []
+  }
+}
+
 /** Code, not the model, has the last word on ids, date and attendees (plan.md §3 agent.ts). */
 function tidy(e: NotebookEntry, input: AgentInput): NotebookEntry {
   const ids = new Set(input.attachments.filter((a) => a.image).map((a) => a.id))

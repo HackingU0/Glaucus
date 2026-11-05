@@ -121,3 +121,26 @@ test('draft → submit → approve → admin edit → export', async () => {
     'assets/2026-11-02/1.jpg', 'entries/2026-11-02-intake-compliant-wheel-test.md',
   ])
 })
+
+test('a registered name reaches sources and open notes, not approved ones', async () => {
+  const { db } = await import('./db.ts')
+  const dana = as(await login('dana', ''))
+  const carol = as(await login('carol', 'Carol Wu', true))
+  const insert = (status: string) => Number(db.prepare(`insert into entries (kind, status, date, created_by, created_at, title, entry, source_messages)
+                                                        values ('session', ?, '2026-11-05', 'dana', '2026-11-05 00:00', 'T', ?, ?)`)
+    .run(status, JSON.stringify({ ...NOTE, attendees: ['dana', 'Dana D', 'Bob Li'] }),
+      JSON.stringify([{ id: '1', author_id: 'dana', author: 'Dana D', at: '2026-11-05 00:00', content: 'x', attachment_ids: [] }])).lastInsertRowid)
+  const open = insert('draft_ready')
+  const approved = insert('approved')
+
+  assert.equal((await dana('/api/me', { method: 'POST', json: { real_name: 'Dana Diaz' } })).status, 204)
+  let entry = (await dana(`/api/entries/${open}`)).body
+  assert.equal(entry.source_messages[0].author, 'Dana Diaz')
+  assert.deepEqual(entry.entry.attendees, ['Dana Diaz', 'Bob Li']) // two old names become one person
+  assert.deepEqual((await dana(`/api/entries/${approved}`)).body.entry.attendees, ['dana', 'Dana D', 'Bob Li'])
+
+  assert.equal((await carol('/api/members/dana', { method: 'PUT', json: { real_name: 'Dana Q' } })).status, 204)
+  entry = (await dana(`/api/entries/${open}`)).body
+  assert.equal(entry.source_messages[0].author, 'Dana Q')
+  assert.deepEqual(entry.entry.attendees, ['Dana Q', 'Bob Li'])
+})

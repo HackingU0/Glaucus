@@ -6,9 +6,9 @@ import { Hono, type Context } from 'hono'
 import { NotebookEntry } from '../shared/entry.ts'
 import { requireAdmin, type Env } from './auth.ts'
 import { config, now, today } from './config.ts'
-import { db, getRow, memberName, transition, writeFts, type Row } from './db.ts'
+import { db, getRow, memberName, namedSources, renameAttendee, transition, writeFts, type Row } from './db.ts'
 import { attachmentsOf, saveUpload } from './files.ts'
-import { runAgent } from './jobs.ts'
+import { MERGE, runAgent } from './jobs.ts'
 import { log } from './log.ts'
 import { renderMarkdown, slugify } from './render.ts'
 
@@ -18,9 +18,9 @@ const json = <T>(s: unknown, fallback: T): T => (typeof s === 'string' ? JSON.pa
 function toApi(row: Row) {
   const revs = db.prepare('select * from entry_revisions where entry_id = ? order by id desc').all(row.id) as Row[]
   return {
-    id: row.id, kind: row.kind, status: row.status, title: row.title, date: row.date, channel: row.channel_id,
+    id: row.id, kind: row.kind, status: row.status, title: row.title, date: row.date, channel: row.channel_name ?? row.channel_id,
     created_by: memberName(row.created_by as string), created_at: row.created_at,
-    source_text: row.source_text, source_messages: json(row.source_messages, []),
+    source_text: row.source_text, source_messages: namedSources(row),
     attachments: attachmentsOf(row.id).map((a) => ({
       id: a.id, filename: a.filename, url: a.small_path ? `/files/${a.id}` : null, orig_url: `/files/${a.id}?orig=1`, sent_to_llm: !!a.sent_to_llm,
     })),
@@ -64,6 +64,7 @@ export const api = new Hono<Env>()
   .post('/me', async (c) => {
     const name = String((await c.req.json()).real_name ?? '').trim()
     if (!name) return c.json({ error: 'real_name required' }, 400)
+    renameAttendee(c.get('user').discord_id, name)
     db.prepare('update members set real_name = ?, registered_at = coalesce(registered_at, ?) where discord_id = ?').run(name, now(), c.get('user').discord_id)
     return c.body(null, 204)
   })
@@ -75,6 +76,7 @@ export const api = new Hono<Env>()
   .put('/members/:discord_id', requireAdmin, async (c) => {
     const name = String((await c.req.json()).real_name ?? '').trim()
     if (!name) return c.json({ error: 'real_name required' }, 400)
+    renameAttendee(c.req.param('discord_id'), name)
     db.prepare('update members set real_name = ? where discord_id = ?').run(name, c.req.param('discord_id'))
     return c.body(null, 204)
   })
@@ -136,12 +138,13 @@ export const api = new Hono<Env>()
     void runAgent(id(c))
     return reply(c, id(c))
   })
-  .post('/entries/:id/retry', requireAdmin, (c) => {
+  .post('/entries/:id/retry', requireAdmin, async (c) => {
     const row = getRow(id(c))
     if (!row?.failed_step) return conflict(c)
-    if (row.failed_step === 'mirror' || row.failed_step === 'attachments') return c.json({ error: `retrying '${row.failed_step}' is not implemented yet` }, 501)
+    if (row.failed_step === 'mirror') return c.json({ error: `retrying '${row.failed_step}' is not implemented yet` }, 501)
     if (!transition(row.id, ['drafting', 'draft_ready'], 'drafting', { failed_step: null, error: null, failed_at: null })) return conflict(c)
-    void runAgent(row.id)
+    if (row.failed_step === 'attachments') void (await import('./bot.ts')).collect(row.id) // loaded late: nothing else in the API needs discord.js
+    else void runAgent(row.id, row.entry && row.kind !== 'web' ? MERGE : undefined) // a fresh draft would throw away hand edits
     return reply(c, row.id)
   })
   .post('/entries/:id/discard', (c) => {
