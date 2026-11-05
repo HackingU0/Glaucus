@@ -42,12 +42,12 @@ fetch('/auth/dev-users')
       </template>
 
       <template v-else-if="accounts">
-        <div v-if="route.query.error === 'not_member'" role="alert" class="mt-4 flex gap-2.5 rounded-lg border border-[#F6C5C1] bg-[#FEF3F2] px-3.5 py-3 text-[#912018]">
+        <div v-if="route.query.error === 'not_member' || route.query.error === 'no_role'" role="alert" class="mt-4 flex gap-2.5 rounded-lg border border-[#F6C5C1] bg-[#FEF3F2] px-3.5 py-3 text-[#912018]">
           <TriangleAlert class="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
           <div>
-            <div class="text-sm font-semibold">{{ t('login.deniedTitle') }}</div>
+            <div class="text-sm font-semibold">{{ t(route.query.error === 'no_role' ? 'login.noRoleTitle' : 'login.deniedTitle') }}</div>
             <div class="mt-1 text-[13px] leading-relaxed">
-              {{ t('login.deniedAccount') }} <code class="font-mono text-xs">{{ route.query.user }}</code>{{ t('login.deniedHint') }}
+              {{ t('login.deniedAccount') }} <code class="font-mono text-xs">{{ route.query.user }}</code>{{ t(route.query.error === 'no_role' ? 'login.noRoleHint' : 'login.deniedHint') }}
             </div>
           </div>
         </div>

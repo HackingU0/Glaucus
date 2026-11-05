@@ -45,6 +45,7 @@ export const me = reactive<Member>({ discord_id: '', discord_name: '', real_name
 export const members = reactive<Member[]>([])
 export const entries = reactive<Entry[]>([])
 export const SUBSYSTEMS = reactive<string[]>([])
+export const setupState = reactive<{ needed?: boolean }>({})
 
 export const countNI = (x: unknown) => JSON.stringify(x ?? '').split(NI).length - 1
 export const isRegistered = (name: string) => members.some((m) => m.real_name === name)

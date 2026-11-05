@@ -1,4 +1,5 @@
-# Copy to config.toml. Restart to apply. Secrets go in .env (see .env.example).
+# Optional. The first-run page at /setup collects most of this and saves it to data/settings.json, which overrides this file.
+# Use config.toml for what /setup doesn't ask: subsystems, image_limit, session_idle_hours. Restart to apply.
 site_url = "http://localhost:5173"    # OAuth redirect = site_url + /auth/callback
 timezone = "America/Los_Angeles"      # "today" and all displayed times use this
 subsystems = ["Intake", "Drivetrain", "Outtake", "Software", "Strategy", "Outreach"]
@@ -9,6 +10,7 @@ session_idle_hours = 4                # a session ends after this long without a
 client_id = ""
 guild_id = ""
 admin_role_id = ""                    # members with this role are bot-admin
+allowed_role_ids = []                 # only these roles (and bot-admin) can use Glaucus, e.g. ["<Coach id>", "<Team 5898 id>"]
 log_channel_id = ""                   # empty = log to console only
 
 [llm]

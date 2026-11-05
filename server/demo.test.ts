@@ -41,12 +41,12 @@ test('the api is still closed without a login', async () => {
   assert.equal((await app.request('/api/entries')).status, 401)
 })
 
-test('DEV_LOGIN off: no test accounts, Discord login is back', async () => {
+test('DEV_LOGIN off: no test accounts, and an unconfigured server asks for setup', async () => {
   config.devLogin = false
   try {
     assert.equal((await app.request('/auth/dev-users')).status, 404)
     assert.equal((await app.request('/auth/dev?id=eli&admin=1')).status, 404)
-    assert.match((await app.request('/auth/login')).headers.get('location')!, /^https:\/\/discord\.com\/oauth2\/authorize/)
+    assert.equal((await app.request('/auth/login')).headers.get('location'), '/setup')
   } finally {
     config.devLogin = true
   }

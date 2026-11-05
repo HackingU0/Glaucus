@@ -180,14 +180,17 @@ drafting → discarded（空 session，或失败后没有任务在跑）
 
 ## 8. 身份、角色、配置
 
-- **登录**：网页用 Discord OAuth2（scope `identify`）登录，直接拿到 `discord_id`。登录后由 bot 检查此人是否在队伍的 Discord 服务器里，不在则拒绝。首次登录填写真名。
-- **未注册者**（没在网页登录过）出现在 Discord session 中：用 Discord 显示名临时代替，草稿中标 `[unregistered]`，并在 thread 里提醒一次去网页登录。
+- **首次设置**：服务器没有配置也能启动，第一次打开任何页面都会跳到 `/setup`。新服务器谁先打开谁就能接管，所以必须输入一次性令牌；令牌只打印在服务器日志里，每次重启都会换。页面填写并测试站点地址、时区、LLM（真实调用一次）和 Discord（bot token、client secret、Message Content intent、OAuth 重定向地址、bot 权限），选择服务器、允许的角色、`bot-admin` 角色和日志频道，并可搜索成员测试其能否进入。点完成时服务器再完整测试一遍，通过后保存并启动 bot，不用重启。完成后 `/setup` 关闭；要重新设置就删除 `data/settings.json` 并重启。
+- **使用权限**：只有拥有任一允许角色（可多个，如 Coach 和 Team 5898）或 `bot-admin` 角色的成员才能使用 Glaucus，没有配置角色时除 `bot-admin` 外都不允许。其他人登录网页、用 slash command 或 @bot 都会报错，他们在 thread 里发的消息不进入笔记。
+- **登录**：网页用 Discord OAuth2（scope `identify`）登录，直接拿到 `discord_id`。登录后由 bot 检查此人是否在队伍的 Discord 服务器里、是否有允许的角色，否则拒绝。首次登录填写真名。
+- **未注册者**（没在网页登录过）出现在 Discord session 中：用 Discord 显示名临时代替，草稿中标 `[unregistered]`，并在 thread 和父频道里提醒一次去网页登录。
 - **角色**：
   - 队员（任何已登录者）：编辑草稿、提交、批准 / 退回他人提交的 entry。
   - `bot-admin`（Discord 角色，登录时由 bot 查询）：网页上可以从失败步骤重试、修改他人注册名、修改已归档的 entry。
-- **配置**：
-  - `config.toml`：Discord 服务器、日志频道、`bot-admin` 角色、站点 URL、队伍时区、输出语言、子系统列表、闲置超时、图片上限、LLM `base_url` / 模型、镜像仓库（可选）。改后重启生效。
-  - `.env`：Discord bot token、OAuth client secret、cookie 签名密钥、LLM API key、GitHub PAT（可选）。
+- **配置**（后者覆盖前者）：
+  - `config.toml`（可选）：子系统列表、闲置超时、图片上限，以及下面设置页收集的非密钥项。改后重启生效。
+  - `data/settings.json`（`/setup` 写入，权限 600）：Discord 服务器、允许的角色、`bot-admin` 角色、日志频道、站点 URL、队伍时区、LLM `base_url` / 模型，以及密钥。cookie 签名密钥首次启动时自动生成并存在这里。备份会包含这个文件，所以备份桶必须私有。
+  - 环境变量（可选）：Discord bot token、OAuth client secret、cookie 签名密钥、LLM API key。设置后设置页不能修改对应项。
 
 ## 9. 数据模型（SQLite）
 

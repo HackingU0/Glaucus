@@ -7,8 +7,9 @@ import { NI, NotebookEntry } from '../shared/entry.ts'
 import { config } from './config.ts'
 import { db } from './db.ts'
 
-let model: LanguageModel = createDeepSeek({ apiKey: config.llmKey, baseURL: config.llm.base_url })(config.llm.model)
-export const setModel = (m: LanguageModel) => { model = m } // tests
+let override: LanguageModel | undefined
+export const setModel = (m: LanguageModel) => { override = m } // tests, demo
+const getModel = () => override ?? createDeepSeek({ apiKey: config.llmKey, baseURL: config.llm.base_url })(config.llm.model) // /setup can change these
 
 const SYSTEM = `You turn an FTC robotics team's raw notes (chat messages or pasted text, any language, plus photos) into one English engineering notebook entry.
 
@@ -69,7 +70,7 @@ export async function compose(input: AgentInput): Promise<NotebookEntry> {
   let lastError = ''
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const r = await generateText({ model, instructions: SYSTEM, messages, tools, stopWhen: stepCountIs(8), output: Output.object({ schema: NotebookEntry }) })
+      const r = await generateText({ model: getModel(), instructions: SYSTEM, messages, tools, stopWhen: stepCountIs(8), output: Output.object({ schema: NotebookEntry }) })
       return tidy(r.output, input)
     } catch (err) {
       if (!NoObjectGeneratedError.isInstance(err)) throw err // network, auth, rate limit: retrying here will not help
@@ -89,7 +90,7 @@ export async function pickMessages(msgs: { author: string; content: string; file
   const list = msgs.map((m, i) => `${i}. ${m.author}: ${m.content || '(no text)'}${m.files.length ? ` [attached: ${m.files.join(', ')}]` : ''}`).join('\n')
   try {
     const r = await generateText({
-      model, instructions: PICK, messages: [{ role: 'user', content: list }],
+      model: getModel(), instructions: PICK, messages: [{ role: 'user', content: list }],
       output: Output.object({ schema: z.object({ numbers: z.array(z.number().int()) }) }),
     })
     return r.output.numbers

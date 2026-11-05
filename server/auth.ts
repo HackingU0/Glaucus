@@ -1,9 +1,9 @@
-// Discord OAuth2 (scope identify) → guild membership + admin role via the bot token → signed cookie with the
-// discord_id. Admin flag is refreshed at each login, so a role change applies at the next login (≤ 7 days).
+// Discord OAuth2 (scope identify) → guild membership + allowed and admin roles via the bot token → signed cookie with the
+// discord_id. Roles are read at each login, so a role change applies at the next login (≤ 7 days).
 import { randomBytes } from 'node:crypto'
 import { Hono, type MiddlewareHandler } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
-import { config, now } from './config.ts'
+import { config, isAllowed, needsSetup, now } from './config.ts'
 import { db } from './db.ts'
 
 export interface Member { discord_id: string; discord_name: string; real_name: string; is_admin: number; registered_at: string | null }
@@ -11,7 +11,7 @@ export type Env = { Variables: { user: Member } }
 
 const DISCORD = 'https://discord.com/api/v10'
 const redirectUri = () => `${config.site_url}/auth/callback`
-const cookieOpts = { httpOnly: true, sameSite: 'Lax', secure: config.site_url.startsWith('https'), path: '/' } as const
+const cookieOpts = () => ({ httpOnly: true, sameSite: 'Lax', secure: config.site_url.startsWith('https'), path: '/' }) as const // /setup can change site_url
 
 function upsertMember(id: string, name: string, admin: boolean) {
   db.prepare(`insert into members (discord_id, discord_name, is_admin) values (?, ?, ?)
@@ -22,8 +22,9 @@ function upsertMember(id: string, name: string, admin: boolean) {
 export const auth = new Hono()
   .get('/login', async (c) => {
     if (config.devLogin) return c.redirect('/login') // demo: the login page lists test accounts, Discord is never involved
+    if (needsSetup()) return c.redirect('/setup')
     const state = randomBytes(16).toString('hex')
-    await setSignedCookie(c, 'oauth_state', state, config.cookieSecret, { ...cookieOpts, maxAge: 600 })
+    await setSignedCookie(c, 'oauth_state', state, config.cookieSecret, { ...cookieOpts(), maxAge: 600 })
     const q = new URLSearchParams({ client_id: config.discord.client_id, response_type: 'code', scope: 'identify', redirect_uri: redirectUri(), state })
     return c.redirect(`https://discord.com/oauth2/authorize?${q}`)
   })
@@ -47,6 +48,7 @@ export const auth = new Hono()
     if (m.status === 404) return c.redirect(`/login?error=not_member&user=${encodeURIComponent(user.username)}`)
     if (!m.ok) throw new Error(`Discord guild member lookup failed: ${m.status}`)
     const { roles } = (await m.json()) as { roles: string[] }
+    if (!isAllowed(roles)) return c.redirect(`/login?error=no_role&user=${encodeURIComponent(user.username)}`)
 
     upsertMember(user.id, user.username, roles.includes(config.discord.admin_role_id))
     return login(c, user.id)
@@ -70,7 +72,7 @@ export const auth = new Hono()
   })
 
 async function login(c: Parameters<MiddlewareHandler>[0], id: string) {
-  await setSignedCookie(c, 'uid', id, config.cookieSecret, { ...cookieOpts, maxAge: 7 * 86400 })
+  await setSignedCookie(c, 'uid', id, config.cookieSecret, { ...cookieOpts(), maxAge: 7 * 86400 })
   const m = db.prepare('select real_name from members where discord_id = ?').get(id) as { real_name: string }
   return c.redirect(m.real_name ? '/' : '/register')
 }

@@ -1,13 +1,13 @@
 // discord.js side of collection (design.md §3.2, §3.3): commands, mentions, the idle check. The decisions are in collect.ts.
 import {
   ChannelType, Client, cleanContent, Events, GatewayIntentBits, InteractionContextType, MessageFlags, SlashCommandBuilder, SnowflakeUtil,
-  ThreadAutoArchiveDuration, type ChatInputCommandInteraction, type Message, type ThreadChannel,
+  ThreadAutoArchiveDuration, type ChatInputCommandInteraction, type Guild, type Message, type ThreadChannel,
 } from 'discord.js'
 import {
   activeSession, addMessages, collectingSessions, draftQuick, draftSession, ensureMember, failCollect, lastSession, openQuick, openSession, reopenSession, resolveMentions,
   sealSession, selectMessages, sessionByThread, sessionOfThread, sourcesOf, unregisteredAuthors, type Msg,
 } from './collect.ts'
-import { config, stamp, today } from './config.ts'
+import { config, isAllowed, stamp, today } from './config.ts'
 import { db, getRow, memberName, realName, transition, type Row } from './db.ts'
 import { runAgent } from './jobs.ts'
 import { log } from './log.ts'
@@ -27,6 +27,26 @@ async function say(channel: { send: ThreadChannel['send'] }, content: string, us
 }
 
 const keep = (m: Message) => !m.author.bot && !m.system
+
+/** Only allowed members reach a note. Fetched history carries no member, so each author is looked up once; no intent needed for that. */
+async function fromAllowed(msgs: Message[]) {
+  const allowed = new Map<string, boolean>()
+  for (const id of new Set(msgs.map((m) => m.author.id))) {
+    const member = await msgs[0].guild!.members.fetch(id).catch((err) => {
+      if (err.code === 10007 || err.code === 10013) return null // left the server: not a member. Anything else: fail, so a retry can get it
+      throw err
+    })
+    allowed.set(id, !!member && isAllowed([...member.roles.cache.keys()]))
+  }
+  return msgs.filter((m) => allowed.get(m.author.id))
+}
+
+function deniedText(guild: Guild | null) {
+  const names = config.discord.allowed_role_ids.map((id) => guild?.roles.cache.get(id)?.name).filter(Boolean)
+  return `You need one of these roles to use Glaucus: ${names.join(', ') || 'none are set up'}.`
+}
+const rolesOf = (member: ChatInputCommandInteraction['member']) =>
+  !member ? [] : Array.isArray(member.roles) ? member.roles : [...member.roles.cache.keys()]
 
 function toMsg(m: Message): Msg {
   const named = resolveMentions(m.content, client.user!.id, (id) => realName(id) || m.mentions.members?.get(id)?.displayName || m.mentions.users.get(id)?.displayName)
@@ -69,7 +89,7 @@ export async function collect(id: number) {
     thread = channel
     // Locked before reading, so nothing posted from here on is silently left out. Without the permission the session still ends.
     await thread.edit({ archived: false, locked: true }).catch((err) => log(`⚠️ could not lock #${channel.name}, give the bot Manage Threads · ${describeError(err)}`))
-    msgs = (await allMessages(thread)).filter(keep).map(toMsg).filter((m) => m.content || m.attachments.length).reverse()
+    msgs = (await fromAllowed((await allMessages(thread)).filter(keep))).map(toMsg).filter((m) => m.content || m.attachments.length).reverse()
     await addMessages(id, msgs)
   } catch (err) {
     failCollect(id, err)
@@ -176,7 +196,7 @@ async function onMention(m: Message) {
   const recent = await m.channel.messages.fetch({ limit: CONTEXT_LIMIT, before: m.id })
   const reference = m.reference ? await m.fetchReference().catch(() => null) : null
   const all = new Map([...recent, ...(reference ? [[reference.id, reference] as const] : []), [m.id, m] as const])
-  const candidates = [...all.values()].filter(keep).sort((a, b) => a.createdTimestamp - b.createdTimestamp).map(toMsg)
+  const candidates = (await fromAllowed([...all.values()].filter(keep))).sort((a, b) => a.createdTimestamp - b.createdTimestamp).map(toMsg)
   const picked = await selectMessages(candidates, [m.id, ...(reference ? [reference.id] : [])], activeSession(m.channelId)?.thread_id as string | undefined)
   if (!picked.length) {
     await m.reply({ content: 'I found nothing to record. Mention me with some text, or reply to the message you mean.', allowedMentions: { repliedUser: false } })
@@ -223,6 +243,7 @@ export async function startBot() {
   client.on(Events.InteractionCreate, async (i) => {
     if (!i.isChatInputCommand() || !['session', 'continue'].includes(i.commandName) || i.guildId !== config.discord.guild_id) return
     try {
+      if (!isAllowed(rolesOf(i.member))) return void await i.reply({ content: deniedText(i.guild), flags: MessageFlags.Ephemeral })
       await (i.commandName === 'continue' ? onContinue(i) : i.options.getSubcommand() === 'start' ? onStart(i) : onEnd(i))
     } catch (err) {
       void log(`❌ ${i} · ${describeError(err)}`)
@@ -235,6 +256,7 @@ export async function startBot() {
     if (m.author.bot || m.guildId !== config.discord.guild_id) return
     if (!m.mentions.has(client.user!, { ignoreEveryone: true, ignoreRoles: true, ignoreRepliedUser: true })) return
     try {
+      if (!m.member || !isAllowed([...m.member.roles.cache.keys()])) return void await m.reply({ content: deniedText(m.guild), allowedMentions: { repliedUser: false } })
       await onMention(m)
     } catch (err) {
       void log(`❌ mention in #${'name' in m.channel ? m.channel.name : m.channelId} · ${describeError(err)}`)

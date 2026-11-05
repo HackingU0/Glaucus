@@ -5,12 +5,14 @@ import Entries from './pages/Entries.vue'
 import NewEntry from './pages/NewEntry.vue'
 import Entry from './pages/Entry.vue'
 import Admin from './pages/Admin.vue'
-import { loadMe, me, refresh } from './api'
+import Setup from './pages/Setup.vue'
+import { loadMe, me, refresh, setupState } from './api'
 
 // meta.bare: no top bar (auth pages). meta.ownMobileHeader: page draws its own header below md. meta.admin: bot-admins only.
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: '/setup', component: Setup, meta: { bare: true } },
     { path: '/login', component: Login, meta: { bare: true } },
     { path: '/register', component: Register, meta: { bare: true } },
     { path: '/', component: Entries },
@@ -21,8 +23,11 @@ export const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
 })
 
-// Login → register real name → app. Lists are refetched on every navigation (small team, cheap).
+// First run → setup. Then login → register real name → app. Lists are refetched on every navigation (small team, cheap).
 router.beforeEach(async (to) => {
+  if (setupState.needed === undefined) setupState.needed = (await fetch('/api/setup/status').then((r) => r.json()).catch(() => ({ needed: false }))).needed
+  if (setupState.needed) return to.path === '/setup' || '/setup'
+  if (to.path === '/setup') return '/login'
   if (to.path === '/login') return
   if (!me.discord_id && !(await loadMe())) return '/login'
   if (!me.real_name) return to.path === '/register' || '/register'

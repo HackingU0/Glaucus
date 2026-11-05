@@ -134,9 +134,13 @@ function transition(id: number, from: Status[], to: Status, extra: Record<string
 
 ### auth.ts
 - `/auth/login` → 跳 Discord（scope `identify`，`state` 存短期签名 cookie 防 CSRF）。
-- `/auth/callback` → 换 token → `GET /users/@me` → bot 查 `guild.members.fetch(id)`，不在服务器就拒绝；同时读角色得到 `isAdmin` → 写签名 cookie `{discord_id, isAdmin, exp}`（Hono `setSignedCookie`，7 天）。
+- `/auth/callback` → 换 token → `GET /users/@me` → 用 bot token 查该成员，不在服务器跳 `/login?error=not_member`，没有允许的角色跳 `/login?error=no_role`；同时读角色得到 `isAdmin` → 写签名 cookie `{discord_id, isAdmin, exp}`（Hono `setSignedCookie`，7 天）。
 - 没有 `members` 记录的跳 `/register` 填真名。
-- `requireUser` 挂在 `/api/*` 和 `/files/*` 上；`requireAdmin` 挂在管理接口上。bot-admin 角色变动最迟 7 天后生效（cookie 过期），够用。
+- `requireUser` 挂在 `/api/*` 和 `/files/*` 上；`requireAdmin` 挂在管理接口上。角色变动最迟 7 天后生效（cookie 过期）：被移除角色的成员在此之前仍能使用网页，bot 则立刻拒绝。
+
+### setup.ts
+- `/api/setup/status` 公开；其余接口要 `x-setup-token`，设置完成后返回 410。令牌启动时生成，只写日志。
+- `/state` 返回当前值，密钥只返回是否已设置。`/test/llm`、`/test/discord`、`/test/member` 只读 Discord、调一次 LLM，不写任何东西。`POST /` 重跑全部测试，通过后写 `data/settings.json`（600）、更新内存里的 `config`、启动 bot。
 
 ### files.ts
 - 保存：原文件写 `data/files/orig/<id>-<filename>`；图片再用 sharp `.rotate().resize(1600, 1600, {fit:'inside'}).jpeg({quality: 80})` 写 `data/files/small/<id>.jpg`。`.rotate()` 先按 EXIF 摆正手机照片。
@@ -254,7 +258,7 @@ revise(input: {current: NotebookEntry, sources: SourceMessage[], images: Attachm
 
 ### M5 — 运维与部署
 1. 把各步骤失败统一接到 `jobs.ts` 的失败记录 + 日志频道；`Admin.vue`：失败列表 + 重试、成员改名。
-2. `Dockerfile`（`node:26-slim`，装 git；`npm ci && vite build`；`CMD node server/main.ts`）+ `compose.yaml`（app + Caddy，`data/` 挂卷）+ `Caddyfile`。
+2. `Dockerfile`（`node:26-slim` 两阶段：先 `npm ci && vite build`，运行阶段只装生产依赖；以 `node` 用户运行 `CMD node server/main.ts`；镜像里不含 `config.toml`、`.env`、`data/`，运行时挂载 `/app/config.toml`、用环境变量传密钥、`/app/data` 挂卷）+ `compose.yaml`（app + Caddy）+ `Caddyfile`。
 3. 备份脚本 `scripts/backup.sh`（`sqlite3 .backup` + `rclone copy`），宿主机 cron 调用。
 4. 部署说明写进 README。
 

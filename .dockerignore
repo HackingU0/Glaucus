@@ -1,0 +1,10 @@
+# Allowlist: .env, config.toml and data/ can't reach the image by accident.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!shared/
+!server/
+!web/
+server/*.test.ts
+web/dist

@@ -3,13 +3,15 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { api } from './api.ts'
 import { auth, requireUser, type Env } from './auth.ts'
-import { config } from './config.ts'
+import { config, needsSetup } from './config.ts'
 import { files } from './files.ts'
 import { markInterrupted } from './jobs.ts'
 import { log } from './log.ts'
+import { announceSetup, setup, startDiscord } from './setup.ts'
 
 export const app = new Hono<Env>()
   .route('/auth', auth)
+  .route('/api/setup', setup) // before requireUser: there are no users yet
   .use('/api/*', requireUser)
   .use('/files/*', requireUser)
   .route('/api', api)
@@ -24,12 +26,13 @@ export const app = new Hono<Env>()
   })
 
 if (import.meta.main) {
+  // As PID 1 in a container, Node ignores these unless handled. SQLite writes are synchronous; a running draft is marked interrupted next start.
+  for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => process.exit(0))
   markInterrupted()
   if (config.devLogin) await (await import('./demo.ts')).startDemo()
-  // Not in demo mode: its sample sessions point at channels that don't exist. A dead bot must not take the web app down.
-  else if (config.botToken && config.discord.guild_id) {
-    void import('./bot.ts').then((b) => b.startBot()).catch((err) => log(`❌ Discord bot failed to start · ${err.message}`))
-  }
+  // Not in demo mode: its sample sessions point at channels that don't exist.
+  else if (needsSetup()) announceSetup()
+  else startDiscord()
   const port = Number(process.env.PORT ?? 8787)
   serve({ fetch: app.fetch, port }, () => {
     console.log(`Glaucus on :${port}${config.devLogin ? ' (DEV_LOGIN on: /auth/dev is open — never in production)' : ''}`)
