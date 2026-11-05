@@ -5,3 +5,7 @@ data/
 config.toml
 .DS_Store
 .claude/worktrees/
+docs/milestones.md
+docs/ui-brief.md
+docs/verify-m2-m3.md
+docs/plan.md
