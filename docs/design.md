@@ -22,7 +22,7 @@ An engineering notebook system for FTC teams: team members jot down notes in Dis
 | UI | Tailwind + shadcn-vue |
 | Validation | zod: write the `NotebookEntry` schema only once, shared by LLM output, API, and frontend forms |
 | Discord | discord.js |
-| LLM | Vercel AI SDK + `@ai-sdk/deepseek` (default deepseek-flash, model / `base_url` configurable, can switch to OpenAI / Anthropic) |
+| LLM | Vercel AI SDK. A `base_url` on deepseek.com uses `@ai-sdk/deepseek` (response_format `json_object`, schema in the prompt); any other OpenAI-compatible `base_url` (OpenAI, Anthropic `https://api.anthropic.com/v1/`, OpenRouter...) uses `@ai-sdk/openai-compatible` with `json_schema` structured output. Default deepseek-flash, model / `base_url` configurable (`server/llm.ts`) |
 | Storage | SQLite (`node:sqlite`), FTS5 for agent history queries |
 | Images | sharp |
 | Login | Discord OAuth2 (direct `fetch` calls) + Hono signed cookie |

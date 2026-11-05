@@ -16,7 +16,7 @@
 
 类型剥离的限制：不能用 `enum`、构造函数参数属性、`namespace`；导入要写 `.ts` 后缀，类型导入用 `import type`。tsconfig 开 `erasableSyntaxOnly` + `verbatimModuleSyntax` + `allowImportingTsExtensions`，违规时编译器直接报错。
 
-**依赖清单**（全部）：`hono` `@hono/node-server` `discord.js` `ai` `@ai-sdk/deepseek` `zod` `sharp` `smol-toml` `fflate`（zip 导出），前端 `vue` `vue-router` `tailwindcss` + shadcn-vue 组件；开发依赖 `typescript` `vite` `@vitejs/plugin-vue` `vue-tsc` `@types/node`。版本在 M0b / M1 安装时以 npm 最新为准（当前 `ai@7`、`@ai-sdk/deepseek@3`、`hono@4`、`discord.js@14`）。
+**依赖清单**（全部）：`hono` `@hono/node-server` `discord.js` `ai` `@ai-sdk/deepseek` `@ai-sdk/openai-compatible`（非 DeepSeek 的 base_url） `zod` `sharp` `smol-toml` `fflate`（zip 导出），前端 `vue` `vue-router` `tailwindcss` + shadcn-vue 组件；开发依赖 `typescript` `vite` `@vitejs/plugin-vue` `vue-tsc` `@types/node`。版本在 M0b / M1 安装时以 npm 最新为准（当前 `ai@7`、`@ai-sdk/deepseek@3`、`hono@4`、`discord.js@14`）。
 
 ## 1. 目录结构
 
