@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { test } from 'node:test'
+import { unzipSync } from 'fflate'
 import sharp from 'sharp'
 import { MockLanguageModelV4 } from 'ai/test'
 
@@ -95,6 +96,11 @@ test('draft → submit → approve → admin edit → export', async () => {
   assert.equal(e.status, 'pending_approval')
   assert.equal((await alice(`/api/entries/${e.id}/approve`, { method: 'POST' })).status, 403, 'submitter cannot approve')
 
+  ;({ body: e } = await alice(`/api/entries/${e.id}`, { method: 'PUT', json: { entry: e.entry, version: e.version } }))
+  assert.deepEqual([e.status, e.submitted_by], ['draft_ready', null], 'editing a pending entry withdraws it')
+  ;({ body: e } = await alice(`/api/entries/${e.id}/submit`, { method: 'POST' }))
+
+  assert.equal((await bob(`/api/entries/${e.id}/return`, { method: 'POST', json: { reason: ' ' } })).status, 400, 'a return needs a reason')
   ;({ body: e } = await bob(`/api/entries/${e.id}/return`, { method: 'POST', json: { reason: 'add end time' } }))
   assert.deepEqual([e.status, e.returned.by, e.submitted_by], ['draft_ready', 'Bob Li', null])
   ;({ body: e } = await alice(`/api/entries/${e.id}/submit`, { method: 'POST' }))
@@ -111,5 +117,7 @@ test('draft → submit → approve → admin edit → export', async () => {
   assert.match(md, /\(\.\.\/assets\/2026-11-02\/1\.jpg\)/)
   const zip = await alice(`/api/export.zip?ids=${e.id}`)
   assert.equal(zip.r.headers.get('content-type'), 'application/zip')
-  assert.ok((await zip.r.arrayBuffer()).byteLength > 100)
+  assert.deepEqual(Object.keys(unzipSync(new Uint8Array(await zip.r.arrayBuffer()))).sort(), [
+    'assets/2026-11-02/1.jpg', 'entries/2026-11-02-intake-compliant-wheel-test.md',
+  ])
 })

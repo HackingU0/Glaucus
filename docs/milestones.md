@@ -55,45 +55,46 @@
 
 - [x] 仓库结构 `server/` / `web/` / `shared/`，`package.json`、`tsconfig`，`config.toml` + `.env` 加载
 - [x] SQLite schema 初始化（members / entries / attachments / entry_revisions / entries_fts，含每频道一个 session 的唯一索引）
-- [ ] Hono 服务 + Vue（Vite）构建产物托管，Tailwind + shadcn-vue 接好；所有路由和附件 URL 默认要求登录
+- [x] Hono 服务 + Vue（Vite）构建产物托管，Tailwind + shadcn-vue 接好；所有路由和附件 URL 默认要求登录
 - [ ] discord.js bot 上线，开启 Message Content intent
-- [ ] Discord OAuth 登录 + 服务器成员检查 + 首次登录填真名；签名 cookie（代码已有，待真实账号验证）
+- [ ] Discord OAuth 登录 + 服务器成员检查 + 首次登录填真名；签名 cookie（真实账号登录已通过，非队员被拒待第二个账号确认）
 - [x] 日志频道发送函数
 
 **验收**：浏览器用 Discord 登录并填好真名；非队员登录被拒；未登录访问附件 URL 被拒；日志频道收到"bot started"。
 
-### M2 — 网页录入与草稿
+### M2 — 网页录入与草稿 ✅
 
 - [x] `NotebookEntry` zod schema（`shared/`，含 `title`）
 - [x] 新建 entry 页：粘贴文字 + 上传附件（图片 sharp 压缩 1600px，非图片只存原文件），日期默认今天
-- [ ] Agent + 工具（`search_entries`、`get_entry`、`get_member`、`list_attachments`、`attach_image`）（前 2 个已有，后 3 个未做）
+- [x] Agent + 工具（`search_entries`、`get_entry`）
 - [x] 事实约束 system prompt
 - [x] 异步生成草稿，前端轮询状态
 - [x] 草稿页：左原始素材，右结构化表单；保存（`updated_at` 乐观锁，`drafting` 期间只读）
 - [x] AI 改稿输入框、重新生成（弹确认）、丢弃
-- [ ] entry 列表 + FTS5 搜索（列表已有；网页搜索目前是前端子串匹配，FTS5 只给 agent 用）
+- [x] entry 列表 + 全文搜索（前端子串匹配；笔记多到列表明显变慢时再换 FTS5）
 - [x] 一个 mock model 测试：假消息 → 草稿 → 校验通过，不调真 API
 
 **验收**：网页粘文字传图 → 出现英文草稿；手改一个字段、用 AI 改一句，都正确保存。
 
-### M3 — 批准与归档（闭环完成）
+**已知风险**：AI 改稿是整篇重新输出，代码不保证未提及的内容不变。2026-11-04 实测 4 次：3 次手改内容都保留，1 次标题和图片说明被改掉（当时的文字带 `VERIFY` 标记，像占位内容）。
+
+### M3 — 批准与归档（闭环完成）✅
 
 - [x] 提交 → `pending_approval`；他人 Approve / 填理由退回；提交者本人不能批准
-- [ ] `pending_approval` 期间被编辑 → 回到 `draft_ready`
+- [x] `pending_approval` 期间被编辑 → 回到 `draft_ready`
 - [x] 批准时定 slug、渲染 Markdown（模板字符串）
 - [x] 归档后只读；bot-admin 修改写 `entry_revisions`，网页可看修订历史
-- [ ] 单条 `.md` 下载、选中多条打包 zip（含压缩图）（接口已测，页面上还没点过）
-- [ ] 状态变化写日志频道（代码已有，真实频道待确认）
-- [ ] （可选）GitHub 镜像：私有仓库 + `contents:write` PAT，批准 / 修改后直推 main（`child_process` git）
+- [x] 单条 `.md` 下载、选中多条打包 zip（含压缩图）
+- [x] 状态变化写日志频道
 
-**验收**：A 网页录入 → 草稿 → 提交；A 自己点不了 Approve；B 退回，A 改完重提，B 批准 → 状态 `approved`，能下载 `.md`；bot-admin 改一个字段，修订历史里看得到旧版本。配了镜像的话，私有仓库 main 上出现对应文件。
+**验收**：A 网页录入 → 草稿 → 提交；A 自己点不了 Approve；B 退回，A 改完重提，B 批准 → 状态 `approved`，能下载 `.md`；bot-admin 改一个字段，修订历史里看得到旧版本。
 
 ### M4 — Discord 接入
 
 - [ ] `/session start [subsystem]` 在当前频道建 thread；该频道已有 session 时拒绝并给链接
 - [ ] `/session end`、`/session kill`（作用于当前频道的 session）
 - [ ] 闲置超时检测（后台循环，看 thread 最后消息时间）
-- [ ] 结束时拉取 thread 全部历史 → `source_messages`，下载附件
+- [ ] 结束时拉取 thread 全部历史 → `source_messages`（`<@id>` 提及由代码换成真名），下载附件
 - [ ] 生成草稿，thread 里回复网页链接
 - [ ] 监听 @bot 提及；`fetch_messages` 工具（硬上限 50）
 - [ ] 归属规则：thread 内只回"已记录"；所在频道有 session 则追加到它；否则并入当天未提交的 quick，没有就新建
@@ -123,6 +124,7 @@
 
 ## 以后再说（未排期）
 
+- **GitHub 镜像**：私有仓库 + `contents:write` PAT，批准 / 修改后直推 main（`child_process` git）。数据备份由 M5 的每日备份负责，等真想在 GitHub 上看笔记历史再做。
 - **PDF 导出**：多写一个模板。
 - **多平台采集**：网页提供录入 API，写一个薄的 AstrBot 插件接 QQ / 微信 / Telegram 等，采集后调 API、回网页链接。等真有非 Discord 平台的需求再做。
 - **多租户**：`/setup` 向导、权限隔离、后台。等真开放给其他队伍再做。

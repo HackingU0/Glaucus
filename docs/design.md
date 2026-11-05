@@ -23,7 +23,7 @@ FTC 队伍的工程笔记系统：队员在 Discord 里随手记录或在网页�
 | 校验 | zod：`NotebookEntry` 只写一份 schema，LLM 输出、API、前端表单共用 |
 | Discord | discord.js |
 | LLM | Vercel AI SDK + `@ai-sdk/deepseek`（默认 deepseek-flash，模型 / `base_url` 可配，可换 OpenAI / Anthropic） |
-| 存储 | SQLite（`node:sqlite`），检索用 FTS5 |
+| 存储 | SQLite（`node:sqlite`），agent 查历史用 FTS5 |
 | 图片 | sharp |
 | 登录 | Discord OAuth2（`fetch` 直调）+ Hono 签名 cookie |
 | GitHub 镜像（可选） | 系统 `git`（`child_process`）+ VPS 上的本地 clone，直推私有仓库 main |
@@ -79,11 +79,11 @@ FTC 队伍的工程笔记系统：队员在 Discord 里随手记录或在网页�
 
 | tool | 作用 |
 |---|---|
-| `search_entries(query, subsystem?, date_range?)` | FTS5 查历史笔记，做跨活动关联（只查 `approved`） |
+| `search_entries(query)` | FTS5 查历史笔记，做跨活动关联（只查 `approved`） |
 | `get_entry(id)` | 读某条历史笔记全文 |
-| `get_member(discord_id)` | Discord ID → 真名 |
-| `fetch_messages(channel, limit, before?)` | 往前翻上下文（硬上限 50），仅 @bot 场景 |
-| `list_attachments(entry_id)` / `attach_image(...)` | 管理图片与说明 |
+| `fetch_messages(channel, limit, before?)` | 往前翻上下文（硬上限 50），仅 @bot 场景（M4） |
+
+真名和附件不需要工具：代码把作者真名、附件编号和图片直接放进提示，Discord 消息里的 `<@id>` 提及在拉取时换成真名。模型在输出里按编号引用图片，不属于这条笔记的编号由代码丢弃。
 
 **agent 不得拥有**：提交、批准、退回、git 操作、发 Discord 消息。这些是确定性流程，由代码执行。agent 只产出和修改笔记内容——这是"学生对内容负责"在代码层面的保证。
 

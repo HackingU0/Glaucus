@@ -184,7 +184,7 @@ revise(input: {current: NotebookEntry, sources: SourceMessage[], images: Attachm
 |---|---|---|
 | `GET /auth/login` `/auth/callback` · `POST /auth/logout` | — | 登录 |
 | `GET /api/me` · `POST /api/me {real_name}` | 用户 | 当前用户 / 注册真名 |
-| `GET /api/entries?q=&status=` | 用户 | 列表；带 `q` 走 FTS |
+| `GET /api/entries` | 用户 | 列表；搜索和筛选在前端 |
 | `POST /api/entries`（multipart：text, date, files[]） | 用户 | 新建 web entry → drafting |
 | `GET /api/entries/:id` | 用户 | entry + attachments + source_messages |
 | `PUT /api/entries/:id {entry, version}` | 用户 / 归档后仅 admin | 保存；version 不符回 409；pending_approval 时回到 draft_ready；approved 时先写 revision |
