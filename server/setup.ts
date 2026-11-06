@@ -1,11 +1,11 @@
 // First run (design.md §9.1): the server starts without settings and /setup collects and tests them. Whoever reaches a new
 // server first must not be able to claim it, so every call but /status needs a one-time token that only goes to the server's logs.
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import { createDeepSeek } from '@ai-sdk/deepseek'
-import { generateText } from 'ai'
+import { generateText, Output } from 'ai'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { config, needsSetup, saveSettings } from './config.ts'
+import { createModel } from './llm.ts'
 import { log } from './log.ts'
 
 const DISCORD = 'https://discord.com/api/v10'
@@ -34,8 +34,9 @@ const Field = z.string().trim().default('')
 async function checkLlm(llm: { base_url: string; model: string }, key: string) {
   try {
     await generateText({
-      model: createDeepSeek({ apiKey: key, baseURL: llm.base_url })(llm.model),
-      prompt: 'Reply with the single word OK.', abortSignal: AbortSignal.timeout(60_000), maxRetries: 0,
+      model: createModel(llm, key), // structured output, like every real call: plain text passing proves little
+      prompt: 'Reply with {"ok": true}.', output: Output.object({ schema: z.object({ ok: z.boolean() }) }),
+      abortSignal: AbortSignal.timeout(60_000), maxRetries: 0,
     })
     return { ok: true }
   } catch (err) {
