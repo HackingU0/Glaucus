@@ -116,7 +116,7 @@ const select = 'mt-1.5 h-9 w-full rounded-md border border-input bg-card px-2.5 
     <div class="absolute top-4 right-4"><LangSwitch /></div>
     <main class="mx-auto flex w-full max-w-[640px] flex-col gap-4">
       <div class="flex items-center gap-2.5">
-        <span aria-hidden="true" class="flex size-[30px] items-center justify-center rounded-[7px] bg-primary font-mono text-base font-medium text-primary-foreground">G</span>
+        <img src="/logo.svg" alt="" class="size-[30px]">
         <h1 class="text-xl font-semibold tracking-tight">{{ t('setup.title') }}</h1>
       </div>
 

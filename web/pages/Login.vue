@@ -22,7 +22,7 @@ fetch('/auth/dev-users')
     <div class="absolute top-4 right-4"><LangSwitch /></div>
     <div class="w-full max-w-[380px] rounded-xl border bg-card px-8 pt-9 pb-7 shadow-[0_1px_2px_rgba(0,0,0,.04)]">
       <div class="flex items-center gap-2.5">
-        <span aria-hidden="true" class="flex size-[30px] items-center justify-center rounded-[7px] bg-primary font-mono text-base font-medium text-primary-foreground">G</span>
+        <img src="/logo.svg" alt="" class="size-[30px]">
         <span class="text-xl font-semibold tracking-tight">Glaucus</span>
       </div>
       <h1 class="mt-6 text-lg font-semibold">{{ t('login.title') }}</h1>

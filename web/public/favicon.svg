@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- logo.svg redrawn for 16px: bigger head and beak, a heavier eye, no brow. -->
+  <defs><clipPath id="tile"><rect width="96" height="96" rx="20"/></clipPath></defs>
+  <rect width="96" height="96" rx="20" fill="#1C1C1A"/>
+  <g clip-path="url(#tile)">
+    <path d="M34 50C36 70 26 82 24 116" fill="none" stroke="#FFF" stroke-width="32" stroke-linecap="round"/>
+    <path d="M52 16 92 38Q95 41 92 43L50 60Z" fill="#F28C1E" stroke="#F28C1E" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="38" cy="38" r="27" fill="#FFF"/>
+    <circle cx="46" cy="30" r="7" fill="#1C1C1A"/>
+  </g>
+</svg>
